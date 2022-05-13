@@ -2,7 +2,7 @@ pp1 <- abs(rnorm(16,0,1))
 pp1 <- pp1/sum(pp1)
 #lambda <- 2
 
-sampNew <- function(P,lambda,k, n){
+sampNew <- function(P,lambda,k,n){
   H <- hapl(n) 
   vec <- 3^(0:(n-1))
   out <- array(0,k)
@@ -90,9 +90,7 @@ varsets <- function(l,n){   #calculate all var sets
 }
 
 gead <- function(x,l,n){   ## calculates geadic expression of each element of vectorx 
-  
   l <- rep(l,n)
-
   out <- array(0,c(length(x),n))
   div <- c(1,cumprod(l[1:(n-1)]))
   for(k in n:1){
@@ -105,9 +103,7 @@ gead <- function(x,l,n){   ## calculates geadic expression of each element of ve
 }
 
 gead1 <- function(x,l){   ## calculates general geadic expression of each element of vectorx
- 
   n <- length(l)
-  
   out <- array(0,c(length(x),n))
   div <- c(1,cumprod(l[1:(n-1)]))
   for(k in n:1){
@@ -118,8 +114,6 @@ gead1 <- function(x,l){   ## calculates general geadic expression of each elemen
   }
   out
 }
-
-
 
 #_____________________________
 # example data
@@ -279,7 +273,6 @@ while(cond1>eps){
   
 }
 
-
 likeGen <- function(pp,la,Nx,N,Ax){
   logli <- 0
   Bcoeff <- num0 #reset B coefficients to 0 in next iteration
@@ -301,5 +294,4 @@ likeGen <- function(pp,la,Nx,N,Ax){
  logli 
   
     
-}  
-
+}
