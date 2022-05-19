@@ -58,7 +58,6 @@ write.csv(FDat, "Dataset/Model2_simulated_data.csv")       ## Saving the estimat
 
 }
 
-
 #************************************************************************************
 ################################# Simulation ########################################
 
@@ -74,7 +73,7 @@ source("Data_Gen_final.R")  ## Loading the data generaor for model2
 lambda <- c(0.1, 0.25, 0.5, 1, 1.5, 2, 2.5)
 
 # Number of loci
-n <- 4
+n <- 2
 
 # Number of haplotypes
 nh <- 2^n

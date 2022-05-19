@@ -25,6 +25,48 @@ varsets <- function(l,n) {
   B
 }
 
+varsets1 <- function(l){   #calculate all var sets
+  # n number of loci
+  # l number of alleles per locus
+  n <- length(l)
+  B <- array(0,c(prod(l),n))
+  B[1:l[1],1] <- 0:(l[1]-1)
+  lkmo <- l[1]
+  if(n>1){
+    for(k in 2:n){
+      if(l[k]>1){
+        lk <- lkmo*l[k]
+        pick1 <- (lkmo+1):lk
+        B[pick1,] <- B[rep(1:lkmo,l[k]-1),]
+        B[pick1,k] <- rep(1:(l[k]-1),each=lkmo)
+        lkmo <- lk   
+      }
+    }
+  }
+  B
+}
+
+varsets2 <- function(l){   #calculate all var sets
+  # n number of loci
+  # l number of alleles per locus
+  n <- length(l)
+  B <- array(1,c(prod(l),n))
+  B[1:l[1],1] <- 1:l[1]
+  lkmo <- l[1]
+  if(n>1){
+    for(k in 2:n){
+      if(l[k]>1){
+        lk <- lkmo*l[k]
+        pick1 <- (lkmo+1):lk
+        B[pick1,] <- B[rep(1:lkmo,l[k]-1),]
+        B[pick1,k] <- rep(2:l[k],each=lkmo)
+        lkmo <- lk
+      }
+    }
+  }
+  B
+}
+
 #################################
 # Function hapl(arch) takes as input a vector of the number of alleles per locu and outputs
 #  a nm x 2 matrix of all possible haplotypes in geadic representation
@@ -73,15 +115,18 @@ cpoiss <- function(lambda,n){
 # The input M is  k x n matrix with entries 0 and 1, where each row  is a haplotype corresponding to 
 # a 0-1 vector. Obs returns the corresponding vector representation of the observ
 #################################
-obs <- function(M){
-  n <- ncol(as.matrix(M)) #number of loci
-  if(n==1){
-    M <- t(M)
-    n <- ncol(M)
-  }
+obs <- function(M, arch){
+  M <- matrix(M, ncol = 2)
   out <- array(0,2)
-  for(k in 1:2){
-    out[k] <- sum(unique(M[,k])+1)
+  arch1 <- arch - 1
+  x <- list()
+  x[[1]] <- seq(0,arch1[1])
+  x[[2]] <- seq(0,arch1[2])
+
+  for(i in 1:2){
+    bin <- 2^x[[i]]
+    binx <- is.element(x[[i]], M[,i]) 
+    out[i] <- bin %*% binx - 1
   }
   out
 }
@@ -97,7 +142,7 @@ datasetgen <- function(P,lambda,N,arch){
   m <- cpoiss(lambda,N)              # MOI values for each sample following CPoiss(lambda)
   for(j in 1:N){                     
     s <- rmultinom(1, m[j], P) #multinomially select M[j] haplotypes from the haplotype pool
-    out[j,] <- obs(H[s!=0,])-1 #Summing up the trianary representation of a number representing the infection
+    out[j,] <- obs(H[s!=0,], arch)-1 #Summing up the trianary representation of a number representing the infection
   } #vector of infections
   out
 }
@@ -105,12 +150,12 @@ datasetgen <- function(P,lambda,N,arch){
 datagen <- function(P,lambda,N,arch){ 
   n <- 2
   H <- hapl(arch)       # Set of possible haplotypes
-  vec <- (2^arch-1)^c(1,0) #c((2^arch[2]-1),1)    # Vector for geadic representation
+  vec <- rev((2^arch-1)^c(0,1)) #c((2^arch[2]-1),1)    # Vector for geadic representation
   out <- array(0,N)
   m <- cpoiss(lambda,N) # MOI values for each sample following CPoiss(lambda)
   for(j in 1:N){        # for each sample
     s <- rmultinom(1, m[j], P) #multinomially select M[j] haplotypes from the haplotype pool
-    out[j] <- sum(vec*(obs(H[s!=0,])-1))+1 #Summing up the trianary representation of a number representing the infection
+    out[j] <- vec%*%obs(H[s!=0,], arch)+1 #Summing up the trianary representation of a number representing the infection
   } #vector of infections
   out <- t(as.data.frame(summary.factor(out))) #vector of how many times each infection that is effectively present appears in the dataset
   vals <- as.integer(colnames(out))-1 #Infections present in the dataset
@@ -121,6 +166,18 @@ datagen <- function(P,lambda,N,arch){
     vals <- re
   } #Trianary representation of each infection present in the dataset
   list(dat, c(out))
+}
+
+gead <- function(x,l,n){   ## calculates geadic expression of each element of vectorx 
+  l <- rep(l,n)
+  out <- array(0,c(length(x),n))
+  div <- c(1,cumprod(l[1:(n-1)]))
+  for(k in n:1){
+    r <- x%%div[k]
+    out[,k] <- (x-r)/div[k]
+    x <- r
+  }
+  out
 }
 
 #################################
@@ -134,275 +191,135 @@ gen_func <- function(x, lambd){
 # The function estsnpmodel(X,Nx) implements the EM algorithm and returns the MLEs, i.e., 
 # estimates of haplotype frequencies and Poisson parameter.
 #################################
-eststrmodel <- function(X, Nx){
-  eps <- 10^-8  # Error
-  N <- sum(Nx)  # Sample size
-  nn <- nrow(X) # Number of different observations present in the dataset
-  n <- ncol(X)  # Number of loci
-  Ax <- list()
-  
-  for(u in 1:nn){
-    xx <- array(X[u,],c(1,n)) # xx = observation
-    sel <- (1:n)[xx==2]       # Identifying the loci where the 2 alleles are observed
-    l <- length(sel)          # Counting the number of loci where the 2 alleles are observed
-    
-    if(l==0){                 # If the infection is a haplotype (only one allele per locus)
-      yy <- xx
-    }else{ 
-      yy <- xx[rep(1,3^l),]
-      yy[,sel] <- varsets(3,l) # Set of all possible observations which combinations can form xx $\mathscr{A}_{y}$
+eststrmodel <- function(dat, arch){
+  X <- dat[[1]] + 1
+  Nx <- dat[[2]]
+  N <- sum(Nx)
+  nn <- nrow(X)
+  l <- arch
+  n <- length(l)
+  x <- X
+  hapll <- c()
+
+  ggead <- c(l[2], 1)
+  Hx <- list() 
+  Ax <- list() 
+  alnum <- list()
+  bin2num <- list()
+  for(k in 1:n){
+    alnum[[k]] <- 1:l[k]
+    bin2num[[k]] <- 2^(0:(l[k]-1))
+  }
+  alcnt <- array(,n)
+  for(u in 1:nrow(x)){
+    Hx[[u]] <- list()
+    Ax[[u]] <- list()
+    Hx[[u]][[1]] <- array(0,n)
+    Hx[[u]][[2]] <- list()
+    Hx[[u]][[3]] <- list()
+    Hx[[u]][[4]] <- list()
+    Hx[[u]][[5]] <- list()
+    Hx[[u]][[6]] <- array(,n)
+    Ax[[u]][[1]] <- list()
+    Ax[[u]][[2]] <- list()
+    Ax[[u]][[3]] <- list()
+    Ax[[u]][[4]] <- list()
+    for(k in 1:n){
+      temp <- gead(x[u,k],2,l[[k]])
+      temp1 <- varsets1(temp+1)[-1,]
+      Hx[[u]][[1]][k] <- sum(temp)
+      Hx[[u]][[2]][[k]] <- (alnum[[k]])[temp*alnum[[k]]]
+      Hx[[u]][[3]][[k]] <- temp1
+      Hx[[u]][[4]][[k]] <- temp1%*%bin2num[[k]] 
+      Hx[[u]][[5]][[k]] <- Hx[[u]][[3]][[k]]%*%rep(1,l[k])
+      Hx[[u]][[6]][k] <- length(temp1%*%bin2num[[k]])
     }
-    bin <- 2^((n-1):0)
-    iilist <- list()
-    siglist <- list()
-    for(i in 1:3^l){
-      y1 <- array(yy[i,],c(1,n)) # Observation {\pmb y} in the set $\mathscr{A}_{y}$
-      sel <- (1:n)[y1==2]
-      l1 <- length(sel)
-      if(l1==0){
-        ii <- y1
-      }else{
-        ii <- y1[rep(1,2^l1),]
-        ii[,sel] <- varsets(2,l1)
+    vz1 <- sum(Hx[[u]][[1]])
+    temp2 <- prod(Hx[[u]][[6]])
+    Ax[[u]][[1]] <- temp2
+    Ax[[u]][[2]] <- varsets2(Hx[[u]][[6]])
+    for(k in 1:n){
+      Ax[[u]][[2]][,k] <- Hx[[u]][[4]][[k]][Ax[[u]][[2]][,k]]
+    }
+    for(j in 1:temp2){
+      Ax[[u]][[3]][[j]] <- list() 
+      for(k in 1:n){
+        temp <- gead(Ax[[u]][[2]][j,k],2,l[[k]])
+        temp1 <- (alnum[[k]])[temp*alnum[[k]]]
+        alcnt[k] <- length(temp1)
+        Ax[[u]][[3]][[j]][[k]] <- temp1
       }
-      iilist[[i]] <- as.character(ii%*%bin+1)
-      siglist[[i]] <- (-1)^(l-l1)
+      Ax[[u]][[4]][[j]] <- varsets2(alcnt)
+      for(k in 1:n){
+        Ax[[u]][[4]][[j]][,k] <- Ax[[u]][[3]][[j]][[k]][Ax[[u]][[4]][[j]][,k]]
+      }
+      Ax[[u]][[4]][[j]] <- as.character((Ax[[u]][[4]][[j]]-1)%*%ggead+1)
+      Ax[[u]][[3]][[j]] <- (-1)^(vz1+sum(alcnt))
     }
-    Ax[[u]] <- list(iilist,siglist,3^l)
-  }
-  # list of all occuring halotypes 
-  hapl1 <- c()
-  for(u in 1:nn){
-    hapl1 <- c(unlist(Ax[[u]][[1]]),hapl1)
-  }
-  hapl1 <- unique(hapl1)
+    hapll[[u]] <- Ax[[u]][[4]][[temp2]]
+  }  
+
+  hapl1 <- unique(unlist(hapll))
+
   H <- length(hapl1)
-  
-  pp <- array(rep(1/H,H),c(H,1))   #  Initial frequency distribution (of the observed haplotypes) for the EM algorithm
+  pp <- array(rep(1/H,H),c(H,1))
   rownames(pp) <- hapl1
-  
-  la <- 2                          # Initial value of lambda for the EM algo.
-  
+
   num0 <- pp*0
-  cond1 <- 1                       # Initializing the condition to stop EM algorithm 
-  Bcoeff <- num0
   num <- num0
   rownames(num) <- hapl1
+  Bcoeff <- num0
   rownames(Bcoeff) <- hapl1
-  t <- 0
-  
-  while(cond1>eps && t<500){
-    t <- t + 1
+  la <- 2
+  cond1 <- 1 
+  eps <- 10^-8
+  while(cond1>eps){
     Ccoeff <- 0
-    Bcoeff <- num0                # reset B coefficients to 0 in next iteration
-    num <- num0                   # reset numerator to 0 in next iteration
-    for(u in 1:nn){               # For all possible observation
+    Bcoeff <- num0    # reset B coefficients to 0 in next iteration
+    num <- num0       # reset numerator to 0 in next iteration
+    for(u in 1:nn){
       denom <- 0
       num <- num0
       CC <- 0
-      for(k in 1:Ax[[u]][[3]]){   # For all h in Ay
-        p <- sum(pp[Ax[[u]][[1]][[k]],]) # Be careful with this sum!!!!!
-        vz <- Ax[[u]][[2]][[k]]
+      for(k in 1:Ax[[u]][[1]]){
+        p <- sum(pp[Ax[[u]][[4]][[k]],])
+        vz <- Ax[[u]][[3]][[k]]
         lap <- la*p
         exlap <- vz*exp(lap)
-        denom <- denom + exlap-vz 
-        num[Ax[[u]][[1]][[k]],] <- num[Ax[[u]][[1]][[k]],]+ exlap
+        denom <- denom + exlap-vz
+        num[Ax[[u]][[4]][[k]],] <- num[Ax[[u]][[4]][[k]],] + exlap
         CC <- CC + exlap*p
       }
       num <- num*pp
       denom <- Nx[u]/denom
       denom <- la*denom
       Ccoeff <- Ccoeff + CC*denom
-      
+    
       Bcoeff <- Bcoeff + num*denom
       
     }
     
     Ccoeff <- Ccoeff/N
-
-      # Replacing NaN's in Ak by 0
-      cnt <- 0
-      for(i in seq_along(Bcoeff)){
-        if (is.nan(Bcoeff[i])){
-          cnt <- cnt + 1
-        }
-      }
-      if(cnt > 0){
-        break
-      }else{
-        ppn <- Bcoeff/(sum(Bcoeff))
-      }
-
-      ##************* 1-Dimensional Newton-Raphson to estimate the lambda parameter
-      cond2 <- 1
-      xt <- Ccoeff
-      tau <- 0
-
-      while(cond2 > eps &&  tau<300){
-        tau <- tau+1
-        ex <- exp(-xt)
-        xtn <- xt + (1-ex)*(xt + Ccoeff*ex - Ccoeff)/(ex*xt+ex-1)
-
-        if(is.nan(xtn) || (tau == 299) || xtn < 0){
+    ppn <- Bcoeff/(sum(Bcoeff))
+    
+    ### Newton step
+    cond2 <- 1
+    xt <- Ccoeff   ### good initial condition
+    while(cond2 > eps){
+      ex <- exp(-xt)
+      xtn <- xt + (1-ex)*(xt + Ccoeff*ex - Ccoeff)/(ex*xt+ex-1)
+      if(is.nan(xtn) || (tau == 299) || xtn < 0){
           xtn <- runif(1, 0.1, 2.5)
-        }
-        cond2 <- abs(xtn-xt)
-        xt <- xtn
       }
-      cond1 <- abs(xt-la)+sqrt(sum((pp-ppn)^2))
-      la <- xt
-      pp <- ppn
+      cond2 <- abs(xtn-xt)
+      xt <- xtn
     }
-
-  list(la, pp)
+    cond1 <- abs(xt-la)+sqrt(sum((pp-ppn)^2))
+    la <- xt
+    pp <- ppn
+  }
+  list(pp, la)
 }
-
-
-#allconf <- function(x,l,n){  # x array
-hapll <- c()
-if(length(l)==1){
-  l <- rep(l,n)
-}else{
-  n <- length(l)
-}
-ggead <- c(1,cumprod(l[1:(n-1)]))
-Hx <- list() 
-Ax <- list() 
-alnum <- list()
-bin2num <- list()
-for(k in 1:n){
-  alnum[[k]] <- 1:l[k]
-  bin2num[[k]] <- 2^(0:(l[k]-1))
-}
-
-alcnt <- array(,n)
-for(u in 1:nrow(x)){
-  Hx[[u]] <- list()
-  Ax[[u]] <- list()
-  Hx[[u]][[1]] <- array(0,n)
-  Hx[[u]][[2]] <- list()
-  Hx[[u]][[3]] <- list()
-  Hx[[u]][[4]] <- list()
-  Hx[[u]][[5]] <- list()
-  Hx[[u]][[6]] <- array(,n)
-  Ax[[u]][[1]] <- list()
-  Ax[[u]][[2]] <- list()
-  Ax[[u]][[3]] <- list()
-  Ax[[u]][[4]] <- list()
-  for(k in 1:n){
-    temp <- gead(x[u,k],2,l[[k]])
-    temp1 <- varsets1(temp+1)[-1,]
-    Hx[[u]][[1]][k] <- sum(temp)
-    Hx[[u]][[2]][[k]] <- (alnum[[k]])[temp*alnum[[k]]]
-    Hx[[u]][[3]][[k]] <- temp1
-    Hx[[u]][[4]][[k]] <- temp1%*%bin2num[[k]] # subsets of alleles
-    Hx[[u]][[5]][[k]] <- Hx[[u]][[3]][[k]]%*%rep(1,l[k]) # number of alleles in subset at locus k
-    Hx[[u]][[6]][k] <- length(temp1%*%bin2num[[k]])
-  }
-  vz1 <- sum(Hx[[u]][[1]])
-  temp2 <- prod(Hx[[u]][[6]])
-  Ax[[u]][[1]] <- temp2
-  Ax[[u]][[2]] <- varsets2(Hx[[u]][[6]])
-  for(k in 1:n){
-    Ax[[u]][[2]][,k] <- Hx[[u]][[4]][[k]][Ax[[u]][[2]][,k]]
-  }
-  
-  for(j in 1:temp2){
-    Ax[[u]][[3]][[j]] <- list() 
-    for(k in 1:n){
-      temp <- gead(Ax[[u]][[2]][j,k],2,l[[k]])
-      temp1 <- (alnum[[k]])[temp*alnum[[k]]]
-      alcnt[k] <- length(temp1)
-      Ax[[u]][[3]][[j]][[k]] <- temp1
-    }
-
-    Ax[[u]][[4]][[j]] <- varsets2(alcnt)
-    
-    for(k in 1:n){
-      Ax[[u]][[4]][[j]][,k] <- Ax[[u]][[3]][[j]][[k]][Ax[[u]][[4]][[j]][,k]]
-    }    
-    
-    Ax[[u]][[4]][[j]] <- as.character((Ax[[u]][[4]][[j]]-1)%*%ggead+1)
-    Ax[[u]][[3]][[j]] <- (-1)^(vz1+sum(alcnt))
-  }
-  hapll[[u]] <- Ax[[u]][[4]][[temp2]]
-
-}  
-
-hapl1 <- unique(unlist(hapll))
-
-
-
-
-#}
-#---------------------------------------
-# initialize parameters
-
-H <- length(hapl1)
-pp <- array(rep(1/H,H),c(H,1))
-rownames(pp) <- hapl1
-
-#t <- 0
-#initial list#
-
-num0 <- pp*0
-cond1 <- 1  ## condition to stop EM alg! 
-
-num <- num0
-rownames(num) <- hapl1
-rownames(Bcoeff) <- hapl1
-
-while(cond1>eps){
-  Ccoeff <- 0
-  Bcoeff <- num0 #reset B coefficients to 0 in next iteration
-  num <- num0  #reset numerator to 0 in next iteration
-  for(u in 1:nn){
-    denom <- 0
-    num <- num0
-    CC <- 0
-    for(k in 1:Ax[[u]][[1]]){
-      p <- sum(pp[Ax[[u]][[4]][[k]],])
-      vz <- Ax[[u]][[3]][[k]]
-      lap <- la*p
-      exlap <- vz*exp(lap)
-      denom <- denom + exlap-vz  ##   = (1-)^(Nx-Ny)*(Exp(lambda*sum p)-1) = (1-)^(Nx-Ny)*G(sum p)
-      num[Ax[[u]][[4]][[k]],] <- num[Ax[[u]][[4]][[k]],]+ exlap#*pp[Ax[[u]][[1]][[k]],]
-      ## exlap =  (1-)^(Nx-Ny) G'(sum p)   --- denominator of generating functions cancels out!
-      CC <- CC + exlap*p
-    }
-    num <- num*pp
-    #print("____________")
-    denom <- Nx[u]/denom
-    denom <- la*denom
-    Ccoeff <- Ccoeff + CC*denom
-   
-    Bcoeff <- Bcoeff + num*denom
-    
-  }
-  
-  Ccoeff <- Ccoeff/N
-
-  ppn <- Bcoeff/(sum(Bcoeff))
-  
-  ### Newton step
-  cond2 <- 1
-  xt <- Ccoeff   ### good initial condition
-  while(cond2 > eps){
-    ex <- exp(-xt)
-    xtn <- xt + (1-ex)*(xt + Ccoeff*ex - Ccoeff)/(ex*xt+ex-1)
-    cond2 <- abs(xtn-xt)
-    xt <- xtn
-  }
-  cond1 <- abs(xt-la)+sqrt(sum((pp-ppn)^2))
-  print(c(cond1,abs(xt-la),sqrt(sum((pp-ppn)^2))))
-  la <- xt
-  pp <- ppn
-  #print(c(pp))
-  print(la)
-  #print(like(pp,la,Nx,N,Ax))
-  
-}
-
 
 #################################
 # The function reform(X1,id) takes as input the dataset in the 0-1-2-notation and returns a matrix of the observations,

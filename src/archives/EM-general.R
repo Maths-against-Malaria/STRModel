@@ -20,7 +20,6 @@ sampNew <- function(P,lambda,k,n){
     vals <- re
   }
   list(dat,c(out))  
-  
 }
 
 ddd <- sampNew(pp1,1,250,4)
@@ -117,12 +116,12 @@ gead1 <- function(x,l){   ## calculates general geadic expression of each elemen
 
 #_____________________________
 # example data
-X <- array(c(3,1,7,2,2,1),c(2,3))
-Nx <- c(2,3)
+X <- dat[[1]] + 1 # array(c(3,0,7,2,2,1),c(2,3))
+Nx <- dat[[2]]
 N <- sum(Nx)
-nn <- nrow(X) 
-l <- c(2,3,3)   # number of alleles per locus
-n <- 3
+nn <- nrow(X)
+l <- arch #c(2,3)   # number of alleles per locus
+n <- length(l)
 x <- X
 
 #_____________________________
@@ -196,7 +195,6 @@ for(u in 1:nrow(x)){
     Ax[[u]][[3]][[j]] <- (-1)^(vz1+sum(alcnt))
   }
   hapll[[u]] <- Ax[[u]][[4]][[temp2]]
-
 }  
 
 hapl1 <- unique(unlist(hapll))
@@ -214,11 +212,12 @@ rownames(pp) <- hapl1
 
 #t <- 0
 #initial list#
-
+eps <- 10^(-8)
 num0 <- pp*0
 cond1 <- 1  ## condition to stop EM alg! 
-
+la <- 2
 num <- num0
+Bcoeff <- num0
 rownames(num) <- hapl1
 rownames(Bcoeff) <- hapl1
 
