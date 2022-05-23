@@ -187,6 +187,23 @@ gen_func <- function(x, lambd){
   (exp(x*lambd)-1)/(exp(lambd) - 1)
 }
 
+setUh <- function(haplo, cardUh, arch){
+  uh  <- t(array(rep(haplo, cardUh), dim = c(2, cardUh)))
+  idx <- which(arch==max(arch))
+  if(length(idx) > 1){
+    idx <- idx[1]
+  }
+  v1 <- 0:(arch[idx]-1)
+  v  <- v1[-which(v1==uh[1,idx])]
+  uh[2:(length(v)+1), idx] <- v
+  idx  <- which(1:2 !=idx)
+  idx2 <- length(v)+2
+  v2   <- 0:(arch[idx]-1)
+  v    <- v2[-which(v2==uh[1,idx])]
+  uh[idx2:cardUh, idx] <- v
+  uh
+}
+
 #################################
 # The function estsnpmodel(X,Nx) implements the EM algorithm and returns the MLEs, i.e., 
 # estimates of haplotype frequencies and Poisson parameter.
@@ -764,20 +781,20 @@ estcondprev <- function(estim, arch){
   # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of 
   # infection from SNPs data"
 
-    # Cardinality of Uh
-    numb_Loci <- sum(arch) - 1 #ncol(estim[[3]])
+    # Number of loci
+    numb_Loci <- 2
 
     # Table of all possible haplotypes
     Hapl <- hapl(arch)
 
-    ## For each haplotype in the table, build the set of observation Uh
-    numb_Hapl_Uh <- numb_Loci + 1
+    # Cardinality of Uh
+    cardUh <- sum(arch)-1
 
     cnames <- colnames(t(estim[[2]]))
 
     ## Access the estimates
     tmp2 <- estim[[2]]
-    pickhap <- estim[[3]]%*%2^(0:(numb_Loci-1))+1
+    pickhap <- estim[[3]]%*%c(arch[2],1)+1
 
     nHapl <- length(pickhap)
 
@@ -789,11 +806,10 @@ estcondprev <- function(estim, arch){
     # Find ambiguous prevalence for each observed haplotype
     for (idx in pickhap[,1]){ 
         # Build uh
-        uh                  <- t(array(rep(Hapl[idx,], numb_Loci), dim=c(numb_Loci, numb_Hapl_Uh)))
-        uh[2:numb_Hapl_Uh,] <- (uh[2:numb_Hapl_Uh,]+diag(numb_Loci))%%2
+        uh <- setUh(Hapl[idx,], cardUh, arch)
 
         # Indexes of haplotypes forming unambiguous observations with h (Uh)
-        pick1 <- uh%*%2^((numb_Loci-1):0)+1
+        pick1 <- uh%*%c(arch[2],1)+1
 
         ## Pick the right frequencies estimates 
         pickh <- which(pickhap == pick1[1])
@@ -801,20 +817,20 @@ estcondprev <- function(estim, arch){
 
         # Picking haplotypes in Uh with non zero frequencies
         pick2 <- which(pickhap%in%pick1) # indices of observed haplotypes in uh
-        tmp3 <- rep(0, numb_Hapl_Uh)
+        tmp3 <- rep(0, cardUh)
         tmp3[which(pick1%in%pickhap)] <- tmp2[pick2]
         rem <- which(tmp3==tmp2[pickh])[1]
         tmp3 <- tmp3[-rem]
         i <- which(idx==pickhap)
-        for(j in 1:(numb_Hapl_Uh-1)){ 
+        for(j in 1:(cardUh-1)){ 
             GPartFreq  <- gen_func(tmp3[j], estim[[1]])
             GFreq      <- gen_func(sum(c(tmp2[pickh],tmp3[j])), estim[[1]])
             tmp        <- GFreq - GPartFreq
             numh[i]    <- numh[i] + tmp
             denh[i]    <- denh[i] + tmp/2
         }
-        numh[i] <- numh[i] - (numb_Loci - 1)*GPh
-        denh[i] <- denh[i] - (numb_Loci/2 - 1)*GPh
+        numh[i] <- numh[i] - ((cardUh-1) - 1)*GPh
+        denh[i] <- denh[i] - ((cardUh-1)/2 - 1)*GPh
     }
     for(q in 1:nHapl){
         prev[,q] <- numh[q]/sum(denh)
