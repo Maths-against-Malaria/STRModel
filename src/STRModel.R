@@ -2,7 +2,7 @@
 # Objective    : Contains implementation of the model (EM-algorithm) and supporting functions
 # Created by   : Christian Tsoungui Obama, Kristan. A. Schneider
 # Created on   : 05.05.22
-# Last modified: 05.05.22
+# Last modified: 23.05.22
 
 #################################
 # Function varsets(n,l) outputs all possible vectors of length n with entries 0,.., l-1
