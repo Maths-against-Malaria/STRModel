@@ -759,21 +759,21 @@ estunobsprev <- function(estim){
 # The function estcondprev(estim) calculates the prevalence of the haplotypes conditioned on.
 # unambiguous observations. The input is the MLEs obtained by the function estsnpmodel(X, Nx).
 #################################
-estcondprev <- function(estim){
+estcondprev <- function(estim, arch){
   # This function estimates the unambiguous prevalence as defined in the manuscript of tsoungui et.al, titled
   # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of 
   # infection from SNPs data"
 
-    # Number of loci
-    numb_Loci <- ncol(estim[[3]])
+    # Cardinality of Uh
+    numb_Loci <- sum(arch) - 1 #ncol(estim[[3]])
 
     # Table of all possible haplotypes
-    Hapl <- hapl(numb_Loci)
+    Hapl <- hapl(arch)
 
     ## For each haplotype in the table, build the set of observation Uh
     numb_Hapl_Uh <- numb_Loci + 1
 
-    cnames <- colnames(estim[[2]])
+    cnames <- colnames(t(estim[[2]]))
 
     ## Access the estimates
     tmp2 <- estim[[2]]
