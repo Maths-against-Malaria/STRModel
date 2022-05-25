@@ -440,7 +440,6 @@ eststrmodel <- function(dat, arch){
       Ccoeff <- Ccoeff + CC*denom
     
       Bcoeff <- Bcoeff + num*denom
-      
     }
     
     Ccoeff <- Ccoeff/N
@@ -458,6 +457,7 @@ eststrmodel <- function(dat, arch){
       }
       cond2 <- abs(xtn-xt)
       xt <- xtn
+      tau <- tau+1
     }
     cond1 <- abs(xt-la)+sqrt(sum((pp-ppn)^2))
     la <- xt
@@ -569,20 +569,27 @@ strmodel <- function(dat, arch){
       denom <- Nx[u]/denom
       denom <- la*denom
       Ccoeff <- Ccoeff + CC*denom
-    
       Bcoeff <- Bcoeff + num*denom
-      
     }
     
     Ccoeff <- Ccoeff/N
-    ppn <- Bcoeff/(sum(Bcoeff))
-    
+
+    # Replacing NaN's in Ak by 0
+    cnt <- sum(is.nan(Bcoeff))
+    if(cnt > 0){
+        break
+      }else{
+        ppn <- Bcoeff/(sum(Bcoeff))
+    }
+    #ppn    <- Bcoeff/(sum(Bcoeff))
+    #print(ppn)
     ### Newton step
     cond2 <- 1
-    xt <- Ccoeff   ### good initial condition
-    tau <- 0
+    xt    <- Ccoeff   ### good initial condition
+    tau   <- 0
     while(cond2 > eps  &&  tau<300){
-      ex <- exp(-xt)
+      tau <- tau + 1
+      ex  <- exp(-xt)
       xtn <- xt + (1-ex)*(xt + Ccoeff*ex - Ccoeff)/(ex*xt+ex-1)
       if(is.nan(xtn) || (tau == 299) || xtn < 0){
           xtn <- runif(1, 0.1, 2.5)
@@ -612,7 +619,7 @@ strmodel <- function(dat, arch){
       }
     }
   }
-  list(la, pp)
+  c(la, pp)
 }
 
 #################################
@@ -685,27 +692,33 @@ mle <- function(df, id = TRUE){
 # The function adhocmodel(X,Nx) calculates the relative prevalence of the haplotypes
 # conditionned on unambiguous observations.
 #################################
-adhocmodel <- function(X, Nx){
+adhocmodel <- function(X, Nx, arch){
 
-  X <- cbind(X, Nx)
-  n <- ncol(X)
+  X     <- cbind(X, Nx)
+  n     <- ncol(X)
   nloci <- n-1
-  # estimate haplotype frequencies
-  nhpl <- 2^nloci
+
+  # number of haplotypes
+  nhpl <- prod(arch)
   
   # extract unambiguous observations
-  tmp1 <- matrix(X[,1:nloci]==2, ncol = nloci)
-  X1 <- X[rowSums(tmp1)<2,]
-
+  bin  <- 2^(0:arch[1])
+  pick <- (X[,1]+1)%in%bin
+  X1   <- X[pick,]
+  X1[,1] <- sapply((X1[,1]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
   if(!all(is.na(X1))){  # if there are unambiguous infections
     n1 <- nrow(X1)
     if(is.null(n1)){ # if there is only one unambiguous infection
       n1 <- 1
     }
     X <- matrix(X1, nrow = n1)
+
     # find indexes of multiple infections
-    tmp2 <- matrix(X[,1:nloci]==2, ncol = nloci)
-    idx1 <- which(rowSums(tmp2)==1)
+    bin  <- 2^(0:arch[2])
+   # bin <- bin[bin<arch[2]]
+    pick <- (X[,2]+1)%in%bin
+    tmp2 <- matrix(X[!pick,1:nloci], ncol = nloci)
+    idx1 <- which(!pick)
 
     if(length(idx1)>0){
       # single infections
@@ -717,17 +730,19 @@ adhocmodel <- function(X, Nx){
     # find all the haplotypes in X
     for(i in idx1){
       y <- X[i,]
-      idx2 <- which(y[1:nloci]==2)
-      h <- array(rep(y,2), c(n, 2))
-      h[idx2,] <- c(0,1)
+      y2 <- y[2]+1
+      pick <- which(as.integer(intToBits(y2))[-seq((arch[2]+1),32)]==1) 
+      all <- bin[pick]-1
+      h <- matrix(rep(y,length(all)), ncol=3, byrow = TRUE)
+      h[,2] <- all
       # add haplotypes in s
-      s <- rbind(s,t(h))
+      s <- rbind(s,h)
     }
-    
+    s[,2] <- sapply((s[,2]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
     # binary representation
-    bin <- 2^((nloci-1):0)
-    pp  <- s[,1:nloci]%*%bin+1
-    pp  <- cbind(pp,s[,n])
+    bin <- c(arch[2],1)
+    pp  <- s[,1:2]%*%bin+1
+    pp  <- cbind(pp,s[,3])
 
     # observed haplotypes
     idx3 <- as.integer(colnames(t(as.data.frame(summary.factor(pp[,1])))))
@@ -745,6 +760,92 @@ adhocmodel <- function(X, Nx){
     p <- matrix(0, ncol=nhpl)
   }
   p
+}
+
+adhocmodelsim <- function(X, Nx, arch){
+
+  X     <- cbind(X, Nx)
+  n     <- ncol(X)
+  nloci <- n-1
+
+  # number of haplotypes
+  nhpl <- prod(arch)
+  
+  # extract unambiguous observations
+  bin  <- 2^(0:arch[1])
+  pick <- (X[,1]+1)%in%bin
+  X1   <- X[pick,]
+  X1[,1] <- sapply((X1[,1]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
+  if(!all(is.na(X1))){  # if there are unambiguous infections
+    n1 <- nrow(X1)
+    if(is.null(n1)){ # if there is only one unambiguous infection
+      n1 <- 1
+    }
+    X <- matrix(X1, nrow = n1)
+
+    # find indexes of multiple infections
+    bin  <- 2^(0:arch[2])
+   # bin <- bin[bin<arch[2]]
+    pick <- (X[,2]+1)%in%bin
+    tmp2 <- matrix(X[!pick,1:nloci], ncol = nloci)
+    idx1 <- which(!pick)
+
+    if(length(idx1)>0){
+      # single infections
+      s <- X[-idx1,]
+    }else {
+      s <- X
+    }
+    
+    # find all the haplotypes in X
+    for(i in idx1){
+      y <- X[i,]
+      y2 <- y[2]+1
+      pick <- which(as.integer(intToBits(y2))[-seq((arch[2]+1),32)]==1) 
+      all <- bin[pick]-1
+      h <- matrix(rep(y,length(all)), ncol=3, byrow = TRUE)
+      h[,2] <- all
+      # add haplotypes in s
+      s <- rbind(s,h)
+    }
+    s[,2] <- sapply((s[,2]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
+    # binary representation
+    bin <- c(arch[2],1)
+    pp  <- s[,1:2]%*%bin+1
+    pp  <- cbind(pp,s[,3])
+
+    # observed haplotypes
+    idx3 <- as.integer(colnames(t(as.data.frame(summary.factor(pp[,1])))))
+    
+    # Frequencies estimates
+    p <- matrix(0, ncol=length(idx3))
+    tot <- sum(pp[,2])
+    for (i in idx3){
+      idx4 <- which(pp[,1]==i)
+      p[,which(i==idx3)] <- sum(pp[idx4,2])/tot
+    }
+      colnames(p) <-  idx3
+  }else{
+    # Frequencies estimates
+    p <- matrix(0, ncol=nhpl)
+  }
+
+  ## Ordering the frequencies
+  pp <- p
+  pp <- pp[,order(idx3)]
+
+  if(length(pp)<nhpl){
+    name <- colnames(p)
+    cnt <- 0
+    for (i in 1:nhpl) {
+      if (i%in%name){
+        cnt <- cnt + 1
+      }else{
+        pp <- append(pp, list(x = 0.0), i-1)
+      }
+    }
+  }
+  pp
 }
 
 #################################

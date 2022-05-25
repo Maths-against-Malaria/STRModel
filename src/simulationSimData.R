@@ -2,26 +2,26 @@
 # Objectives   : Implement the EM-algorithm on simulated data and save the estimates
 # Created by   : christian Tsoungui Obama, Kristan A. Schneider
 # Created on   : 05.05.22
-# Last modified: 23.05.22
+# Last modified: 24.05.22
 
 # Relative path
-path <- "/Volumes/GoogleDrive-117934057836063832284/My Drive/Maths against Malaria/Christian/Models/MultiLociBiallelicModel/"
+path <- "/Volumes/GoogleDrive-117934057836063832284/My Drive/Maths against Malaria/Christian/Models/STRModel/"
 
 # Loading external ressources
-source(paste0(path, "src/nbiallelicModel.R"))          ## Loading Model
-source(paste0(path, "src/dataGenerator.R"))            ## Loading the data generaor for model
+source(paste0(path, "src/STRModel.R"))          ## Loading Model
+#source(paste0(path, "src/dataGenerator.R"))            ## Loading the data generaor for model
 
 # True Poisson parameter
 lbdavec <- c(0.1, 0.25, 0.5, 1, 1.5, 2, 2.5)
 NLbd <- length(lbdavec)
 
-# Number of loci considered
-NumbLoci <- c(2, 5)
-Nn <- length(NumbLoci)
-nvec <- matrix(NumbLoci, nrow = 1, ncol = Nn)
+# Genetic architecture
+genArch <- matrix(c(2,2,2,3,4,7), ncol = 2, byrow = TRUE)
+Nn <- nrow(genArch)
+#nvec <- matrix(NumbLoci, nrow = 1, ncol = Nn)
 
 # Number of possible haplotypes
-Hvec <- 2^nvec
+Hvec <-  apply(genArch,1, prod) 
 NH <- length(Hvec)
 Hvecpo <- Hvec + 1
 
@@ -30,10 +30,10 @@ Nvec <- c(50, 100, 150, 200, 500)
 NN <- length(Nvec)
 
 # Number of estimates generated in the simulation
-NEst <- 10000
+NEst <- 50 #10000
 
 # Number of frequencies set per (number of loci) case
-NFreq <- length(NumbLoci)
+NFreq <- 2
 
 # Extra parameters
 ParExtra <- list(NLbd, Nn, Hvec, NN, NEst, NFreq)
@@ -49,11 +49,11 @@ for (i in 1:Nn){
 True_param <- list(Pvec, lbdavec, Nvec)
 
 # Simulation
-out <- vector(mode = "list", length = Nn)
+out  <- vector(mode = "list", length = Nn)
 out2 <- vector(mode = "list", length = Nn)
 
 for (i in 1:Nn){
-  print(paste0("processing frequency distributions of ", nvec[,i], " loci."))
+  print(paste0("processing frequency distributions for m=", genArch[i,1], " and n=",  genArch[i,2], " alleles, respectively."))
   sizelist <- vector(mode = "list", length = NN)
   sizelist2 <- vector(mode = "list", length = NN)
   for (j in 1:NN){                                                                                ## For each value of the sample size
@@ -64,9 +64,10 @@ for (i in 1:Nn){
       adhocEstim <- array(0, dim = c(Hvec[i], NEst, NFreq))
       for (cnt in 1:NFreq){
         for (l in 1:NEst){
-          infct <- sampNew(unlist(Pvec[[i]][cnt,]) ,unlist(lbdavec[k]) ,Nvec[j], nvec[,i])        ## Generating data for the simulation
-          Estim[,l,cnt] <- unlist(nbialModel(infct[[2]], infct[[1]]))                             ## Evaluating and saving the Estimates
-          adhocEstim[,l,cnt] <- unlist(adhocModel(infct))                                    ## Ad hoc estimates for frequencies
+          infct              <- datagen(unlist(Pvec[[i]][cnt,]) ,unlist(lbdavec[k]) ,Nvec[j], genArch[i,])      ## Generating data for the simulation
+          #print(infct)
+          Estim[,l,cnt]      <- unlist(strmodel(infct, genArch[i,]))                                            ## Evaluating and saving the Estimates
+          adhocEstim[,l,cnt] <- unlist(adhocmodelsim(infct[[1]], infct[[2]], genArch[i,]))                      ## Ad hoc estimates for frequencies
         }
       }
       lbdalist[[k]] <- Estim
@@ -83,7 +84,7 @@ for (i in 1:Nn){
   saveRDS(out2, file = paste0(path, "dataset/adhocModelEstimates.rds"))
 
   # End of simulation warning
-  print(paste0("Simulation finished for ", nvec[,i], " loci ;)"))
+  print(paste0("Simulation finished ;)"))
 }
 
 # Saving the true parameters
