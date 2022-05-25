@@ -184,7 +184,7 @@ true_amb_prevalence  <- function(reshap_Sim_Param, name){
   qh_loc
 }
 
-true_conditional_prevalence <- function(reshap_Sim_Param, sim_Param, name){
+true_conditional_prevalence <- function(reshap_Sim_Param, sim_Param, name, gen){
   # This function implements the true conditional prevalence as defined in the manuscript of tsoungui et.al, titled
   # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from SNPs data"
  
@@ -201,6 +201,7 @@ true_conditional_prevalence <- function(reshap_Sim_Param, sim_Param, name){
     numb_Loci <- 2
 
     # Table of all possible haplotypes
+    arch <- gen[l,]
     Hapl <- hapl(arch)
 
     ## Cardinality of the set Uh
@@ -263,7 +264,7 @@ true_conditional_prevalence <- function(reshap_Sim_Param, sim_Param, name){
   qh_loc
 }
 
-true_relative_prevalence    <- function(reshap_Sim_Param, sim_Param, name){
+true_relative_prevalence    <- function(reshap_Sim_Param, sim_Param, name, gen){
   # This function implements the true relative prevalence as defined in the manuscript of tsoungui et.al, titled
   # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from SNPs data"
  
@@ -280,6 +281,7 @@ true_relative_prevalence    <- function(reshap_Sim_Param, sim_Param, name){
     numb_Loci <- 2
 
     # Table of all possible haplotypes
+    arch <- gen[l,]
     Hapl <- hapl(arch)
 
     ## Cardinality of the set Uh
@@ -381,7 +383,7 @@ estim_amb_prevalence <- function(estim_Param, true_prev, name){
   qh_loc
 }
 
-estim_conditional_prevalence <- function(estim_Param, sim_Param, true_prev, name){
+estim_conditional_prevalence <- function(estim_Param, sim_Param, true_prev, name, gen){
   # This function estimates the unambiguous prevalence as defined in the manuscript of tsoungui et.al, titled
   # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from SNPs data"
  
@@ -403,6 +405,7 @@ estim_conditional_prevalence <- function(estim_Param, sim_Param, true_prev, name
       numb_Loci <- 2
 
       # Table of all possible haplotypes
+      arch <- gen[l,]
       Hapl <- hapl(arch)
 
       ## Cardinality of the set Uh
@@ -524,7 +527,7 @@ estim_relative_prevalence <- function(estim, name){
   qh_loc
 }
 
-main <- function(sim_Param, reshap_Sim_Param, name){
+main <- function(sim_Param, reshap_Sim_Param, name, gen){
   # Loading estimated haplotype frequencies and MOI
   estim_Param       <- readRDS(paste0(path, "dataset/modelEstimates", name, ".rds"))
   adhoc_estim_Param <- readRDS(paste0(path, "dataset/adhocModelEstimates", name, ".rds"))
@@ -539,26 +542,27 @@ main <- function(sim_Param, reshap_Sim_Param, name){
   true_Amb_Prev          <- true_amb_prevalence(reshap_Sim_Param, name)
 
   # True conditional prevalence
-  true_Conditional_Prev  <- true_conditional_prevalence(reshap_Sim_Param, sim_Param, name)
+  true_Conditional_Prev  <- true_conditional_prevalence(reshap_Sim_Param, sim_Param, name, gen)
 
   # True relative prevalence
-  true_Relative_Prev     <- true_relative_prevalence(reshap_Sim_Param, sim_Param, name)
+  true_Relative_Prev     <- true_relative_prevalence(reshap_Sim_Param, sim_Param, name, gen)
 
 
   # Estimated ambiguous prevalence
   estim_amb_prevalence(estim_Param, true_Amb_Prev, name)
 
   # Estimated conditional prevalence
-  estim_conditional_prevalence(estim_Param, sim_Param, true_Conditional_Prev, name)
+  estim_conditional_prevalence(estim_Param, sim_Param, true_Conditional_Prev, name, gen)
 
   # Estimated relative prevalence (adhoc Model)
   estim_relative_prevalence(adhoc_estim_Param, name)
 }
  
-path <- "/Volumes/GoogleDrive-117934057836063832284/My Drive/Maths against Malaria/Christian/Models/MultiLociBiallelicModel/"
+# Relative path
+path <- "/Volumes/GoogleDrive-117934057836063832284/My Drive/Maths against Malaria/Christian/Models/STRModel/"
 
 # Define data origin ('' <- simulated data, 'Kenya' <- kenyan data)
-namelist <- c('', 'Kenya')
+namelist <- c('') #c('', 'Kenya')
 
 for (name in namelist){
   print(paste0('Ongoing simulation for: ', name, ' data!'))
@@ -576,8 +580,7 @@ for (name in namelist){
   n_Sampl       <- extra_Sim_Param[[4]]
   n_Sampl_Gen   <- extra_Sim_Param[[5]]
   n_Freq_Distr  <- extra_Sim_Param[[6]]
-
-  n_Loci        <- log2(n_Hapl)
+  genArch       <- extra_Sim_Param[[7]]
   true_Mean_MOI <- psi(sim_Param[[2]])
 
   # Reformatting true parameters to compute true prevalence
@@ -594,5 +597,5 @@ for (name in namelist){
     }
   }
 
-  main(sim_Param, reshap_Sim_Param, name)
+  main(sim_Param, reshap_Sim_Param, name, genArch)
 }

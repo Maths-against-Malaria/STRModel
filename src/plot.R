@@ -1,0 +1,352 @@
+# Title        : Plotting the hapl. freq. and MOI Bias & CV, and also prevalence
+# Objective    : Plot the bias and coefficient of variation of the estimates
+# Created by   : christian Tsoungui Obama
+# Created on   : 03.04.21
+# Last modified: 14.04.22
+
+# Importing libraries
+library(dplyr)
+library(ggplot2)
+
+# Functions
+beautify <- function (p, legende1, legende2, pos, colpal, linety, lgdetitle, form){
+  p <- p + theme(panel.grid.minor = element_blank(),panel.grid=element_blank())
+  p <- p + theme(panel.grid.major = element_blank(),panel.grid=element_blank())
+  p <- p + theme(panel.grid.minor.y=element_blank(),panel.grid.major.y=element_blank())
+  p <- p + theme(panel.grid.minor.x=element_blank(),panel.grid.major.x=element_blank())
+  p <- p + theme(panel.background = element_rect(colour='black',fill="transparent"))
+  p <- p + theme(plot.background = element_rect(fill = "transparent", colour = NA))
+
+  # Title
+  p <- p + theme(plot.title =element_text(face ="italic",size=rel(2.2),hjust = 0.5))
+
+  # Legend
+  p <- p + theme(legend.key=element_blank(), legend.text.align = 0, legend.background = element_blank())
+  p <- p + theme(legend.key=element_blank(), legend.text.align = 0, legend.position = pos, legend.background = element_blank())
+  p <- p + scale_linetype_manual(values=linety, labels=Ilab <-  legende2, guide = guide_legend(title = NULL))
+  p <- p + scale_colour_manual(values=colpal, labels=Ilab <-  legende1, guide = guide_legend(title = lgdetitle))
+  p <- p + theme(legend.text = element_text(size = rel(2.2)))
+  p <- p + theme(legend.title = element_text(size = rel(1.5),face=form), legend.margin = margin(t = 1, b = 0.00001))
+  p <- p + theme(legend.key.width = unit(9.5,"mm"))
+
+  # Axis
+  p <- p + theme(axis.text = element_text(colour='black'))
+  p <- p + theme(axis.text = element_text(size = rel(2.1)))
+  p <- p + theme(axis.title = element_text(size = rel(2.2)))
+  p <- p + theme(axis.title.x = element_text(face="italic"))
+  p <- p + theme(axis.title.y = element_text(face="plain"))
+  p <- p + theme(axis.ticks = element_line(color = "black"))
+
+  p
+}
+
+psi <- function (inp){
+  inp / (1 - exp(-inp))
+}
+
+dataframe_builder_prev <- function(prev_estim, type_prev, locNumb, true_prev){
+  NRow <- length(samp_Vec)*length(lbda_Vec)*n_Freq_Distr*n_Hapl [locNumb] 
+
+  cnames <- c('prev', 'sample', 'freq', 'shape')
+  df1 <- array(0, dim = c(NRow, length(cnames)))
+  df1 <- as.data.frame(df1)
+  colnames(df1) <- cnames
+  samp_vec <- rep(samp_Vec, each=NRow/(length(samp_Vec)*n_Freq_Distr))
+  df1[,'sample'] <- as.factor(rep(samp_vec, n_Freq_Distr))
+  df1[,'freq']   <- as.factor(rep(1:n_Hapl [locNumb], NRow/(length(lbda_Vec)*n_Hapl [locNumb])))
+  df1[,'shape']  <- as.factor(rep(c("sym", "asym"), each=NRow/n_Freq_Distr))
+
+  exp_prev <- c()
+  for (l in 1:n_Freq_Distr){
+    for (k in 1:length(samp_Vec)) {
+      for (j in 1:n_Lbda){
+        for (i in 1:n_Hapl [locNumb]){
+          exp_prev <- c(exp_prev, prev_estim[[locNumb]][[k]][[j]][[l]][i])
+        }
+      }
+    }
+  }
+  df1[,'prev'] <- exp_prev
+  df1$type <- as.factor(type_prev)
+  df1$vers <- as.factor('estimate')
+
+  df2 <- array(0, dim = c(NRow, length(cnames)))
+  df2 <- as.data.frame(df2)
+  colnames(df2) <- cnames
+  samp_vec <- rep(samp_Vec, each=NRow/(length(samp_Vec)*n_Freq_Distr))
+  df2[,'sample'] <- as.factor(rep(samp_vec, n_Freq_Distr))
+  df2[,'freq']   <- as.factor(rep(1:n_Hapl [locNumb], NRow/(length(lbda_Vec)*n_Hapl [locNumb])))
+  df2[,'shape']  <- as.factor(rep(c("sym", "asym"), each=NRow/n_Freq_Distr))
+
+  exp_prev <- c()
+  for (l in 1:n_Freq_Distr){
+    for (k in 1:length(samp_Vec)) {
+      for (j in 1:n_Lbda){
+        exp_prev <- c(exp_prev, true_prev[[locNumb]][[l]][,j])
+      }
+    }
+  }
+
+  df2[,'prev'] <- exp_prev
+  df2$type <- as.factor(type_prev)
+  df2$vers <- as.factor('true')
+
+  df <- rbind(df1, df2)
+  df
+}
+
+dataframe_builder_Freqperf <- function(perf_estim, locNumb){
+  NRow <- length(samp_Vec)*length(lbda_Vec)*n_Freq_Distr*n_Hapl [locNumb]
+
+  # frequencies
+  cnames <- c('bias', 'sample', 'freq', 'shape')
+  df1 <- array(0, dim = c(NRow, length(cnames)))
+  df1 <- as.data.frame(df1)
+  colnames(df1) <- cnames
+
+  samp_vec <- rep(samp_Vec, each=NRow/(length(samp_Vec)*n_Freq_Distr))
+  df1[,'sample'] <- as.factor(rep(samp_vec, n_Freq_Distr))
+  df1[,'freq']   <- as.factor(rep(1:n_Hapl [locNumb], NRow/(length(lbda_Vec)*n_Hapl [locNumb])))
+  df1[,'shape']  <- as.factor(rep(c("sym", "asym"), each=NRow/n_Freq_Distr))
+
+  exp_perf <- c()
+  for (l in 1:n_Freq_Distr){
+    for (k in 1:length(samp_Vec)) {
+      for (j in 1:n_Lbda){
+          exp_perf <- c(exp_perf, perf_estim[[locNumb]][[k]][[j]][[l]])
+      }
+    }
+  }
+  
+  df1[,'bias'] <- exp_perf
+  df1$type <- as.factor('freq')
+  df1
+}
+
+dataframe_builder_Moiperf <- function(perf_estim, locNumb){
+  NRow <- length(samp_Vec)*length(lbda_Vec)*n_Freq_Distr
+
+  # frequencies
+  cnames <- c('bias', 'sample', 'shape')
+  df1 <- array(0, dim = c(NRow, length(cnames)))
+  df1 <- as.data.frame(df1)
+  colnames(df1) <- cnames
+
+  samp_vec <- rep(samp_Vec, each=NRow/(length(samp_Vec)*n_Freq_Distr))
+  df1[,'sample'] <- as.factor(rep(samp_vec, n_Freq_Distr))
+  df1[,'shape']  <- as.factor(rep(c("sym", "asym"), each=NRow/n_Freq_Distr))
+
+  exp_perf <- c()
+  for (l in 1:n_Freq_Distr){
+    for (k in 1:length(samp_Vec)) {
+      for (j in 1:n_Lbda){
+          exp_perf <- c(exp_perf, perf_estim[[locNumb]][[k]][[j]][[l]])
+      }
+    }
+  }
+  
+  df1[,'bias'] <- exp_perf
+  df1$type <- as.factor('moi')
+  df1
+}
+
+main <- function(sim_Param, name, gen){
+  # Plots parameters
+  shape_typ <- c('sym', 'asym')
+
+  if(name=="Kenya"){
+    dir   <- 'DD'
+  }else{
+    dir   <- 'SD'
+  }
+
+  # Color palette (color-blind friendly) for the plots
+  cbPalette <- c(rgb(0,0,0), rgb(.35, .70, .90), rgb(.90,.60,0), rgb(0,.60,.50), rgb(0,.45,.70), rgb(.80,.40,0), rgb(.5, .5, .5))
+  lty       <- c("dashed", "solid")
+  legende2  <- c('estimate', 'true')
+
+  if(1==1){ # Plotting prevalence
+    # Importing the data to plot
+    amb_prev          <- readRDS(paste0(path, "dataset/estim_Amb_Prevalence",   name, ".rds"))
+    relative_prev     <- readRDS(paste0(path, "dataset/estim_Rel_Prevalence",   name, ".rds"))
+    conditional_prev  <- readRDS(paste0(path, "dataset/estim_Cond_Prevalence",  name, ".rds"))
+
+    true_amb_prev         <- readRDS(paste0(path, "dataset/true_Amb_Prevalence",   name, ".rds"))
+    true_relative_prev    <- readRDS(paste0(path, "dataset/true_Rel_Prevalence",   name, ".rds"))
+    true_conditional_prev <- readRDS(paste0(path, "dataset/true_Cond_Prevalence",  name, ".rds"))
+
+    # Plots parameters
+    legende1 <- c('unobservable', 'conditional', 'relative')
+
+    # Position of legend
+    pos <- c(0.20, 0.70)
+
+    for(l in 1:n_Sim_Loci){ # 2 or 5 loci
+      # Building the prevalence dataframe
+      df_ambprev   <- dataframe_builder_prev(amb_prev,         'amb_prev',         l, true_amb_prev)
+      df_relprev   <- dataframe_builder_prev(relative_prev,    'relative_prev',    l, true_relative_prev)
+      df_condprev  <- dataframe_builder_prev(conditional_prev, 'conditional_prev', l, true_conditional_prev)
+
+      df <- rbind(df_ambprev, df_condprev, df_relprev)
+      tru_freq <- sim_Param[[1]][[l]]
+
+      for(k in 1:n_Freq_Distr){  # sym or asym
+        trufreq_vec <- tru_freq[k,]
+
+        for(i in 1:n_Hapl[l]){
+          if(trufreq_vec[i] != 0){
+              for(j in samp_Vec){
+                df1 <- df %>%
+                      filter(sample == j, freq == i, shape == shape_typ[k]) %>%
+                      droplevels()
+
+                df1$psiVec <- psi(lbda_Vec)
+                
+                p <- ggplot(data = df1, aes(x=psiVec))
+                p <- p + geom_line(aes(y = df1[,'prev'], color = type, linetype = vers), size=1.)
+                p <- p + geom_hline(yintercept = round(trufreq_vec[i], 3), linetype="dashed", color = "grey")
+                p <- beautify(p, legende1, legende2, pos, cbPalette, lty, NULL, NULL)
+                if(name == 'Kenya'){
+                    p <- p + labs(x=expression(frac(lambda, 1 - e^-lambda)), y="", title=paste0("p = ", round(trufreq_vec[i], 3), ", N = ", j, ", year = ", estim_Years[k]))
+                    outfile <- paste0(path,"plots/Prev_plots_", dir, "/prev_freq_", i, "_SSize_", j, "_year_", estim_Years[k], "_", name, ".pdf")
+                }else{
+                    p <- p + labs(x=expression(frac(lambda, 1 - e^-lambda)), y="", title=paste0("p = ", round(trufreq_vec[i], 3), ", N = ", j, ", m = ", gen[l,1], ", n = ", gen[l,2]))
+                    outfile <- paste0(path,"plots/Prev_plots_", dir, "/prev_", shape_typ[k], "_freq_", i, "_SSize_", j, "_nloci_", gen[l,1],"_",gen[l,2], "_", name, ".pdf")
+                }
+
+                pdf(outfile, height=5, width=8)
+                print(p)
+                dev.off()
+              }
+          }
+        }
+      }
+    }
+  }
+
+  legende1  <- samp_Vec
+  
+  if(1==1){ # Plotting bias for haplotype frequencies
+    # Importing the data to plot
+    freqbias <- readRDS(paste0(path, "dataset/freqbias", name, ".rds"))
+
+      for(l in 1:n_Sim_Loci){ # 2 or 5 loci
+        # Building the frequencies bias dataframe
+        df <- dataframe_builder_Freqperf(freqbias, l)
+        tru_freq <- sim_Param[[1]][[l]]
+
+        for(k in 1:n_Freq_Distr){  # sym or asym
+          trufreq_vec <- tru_freq[k,]
+          for(i in 1:n_Hapl [l]){
+            if(trufreq_vec[i] != 0){
+              for(j in samp_Vec){
+                df1 <- df %>%
+                    filter(freq == i, shape == shape_typ[k]) %>%
+                    droplevels()
+                df1$psiVec <- psi(lbda_Vec)
+
+                p <- ggplot(data = df1, aes(x=psiVec))
+                p <- p + geom_line(aes(y = df1[,'bias'], color = sample), size=1.)
+                p <- beautify(p, legende1, legende2, NULL, cbPalette, lty, 'N', 'italic')
+                p <- p + expand_limits(y=0)
+                p <- p + labs(x=expression(frac(lambda, 1 - e^-lambda)), y=paste0('bias frequencies (in %)'), title = paste0('p = ', round(trufreq_vec[i], 3)))
+                if(name == 'Kenya'){
+                  outfile <- paste0(path,"plots/Bias_cv_plots_", dir, "/frequency/", "bias_freq_", i, "_year_", estim_Years[k], "_", name, ".pdf")
+                }else{
+                  outfile <- paste0(path,"plots/Bias_cv_plots_", dir, "/frequency/", "bias_", shape_typ[k], "_freq_", i, "_nloci_", gen[l,1],"_",gen[l,2], "_",name, ".pdf")
+                }
+                pdf(outfile, height=5, width=8)
+                print(p)
+                dev.off()
+              }
+            }
+          }
+        }
+    }
+  }
+
+  if(1==1){ # Plotting bias and coefficient of variation for MOI
+    # Importing the data to plot
+    moibias  <- readRDS(paste0(path, "dataset/moibias", name, ".rds"))
+    moicv    <- readRDS(paste0(path, "dataset/moicv", name, ".rds"))
+
+      for(l in 1:n_Sim_Loci){ # 2 or 5 loci
+        # Building the prevalence dataframe
+        df_cv   <- dataframe_builder_Moiperf(moicv, l)
+        df_bias <- dataframe_builder_Moiperf(moibias, l)
+
+        tru_freq <- sim_Param[[1]][[l]]
+
+        for(k in 1:n_Freq_Distr){  # sym or asym
+          trufreq_vec <- tru_freq[k,]
+          df1 <- df_bias %>%
+                filter(shape == shape_typ[k]) %>%
+                droplevels()
+          df1$psiVec <- psi(lbda_Vec)
+
+          p <- ggplot(data = df1, aes(x=psiVec))
+          p <- p + geom_line(aes(y = df1[,'bias'], color = sample), size=1.)
+          p <- beautify(p, legende1, legende2, NULL, cbPalette, lty, 'N', 'italic')
+          p <- p + expand_limits(y=0)
+          p <- p + labs(x=expression(frac(lambda, 1 - e^-lambda)), y=paste0('bias MOI (in %)'))
+          if(name == 'Kenya'){
+              outfile <- paste0(path,"plots/Bias_cv_plots_", dir, "/moi/", "bias_moi_year_", estim_Years[k], "_", name, ".pdf")
+          }else{
+              outfile <- paste0(path,"plots/Bias_cv_plots_", dir, "/moi/", "bias_", shape_typ[k], "_moi_nloci_", gen[l,1],"_",gen[l,2], "_",name, ".pdf")
+          }
+          pdf(outfile, height=5, width=8)
+          print(p)
+          dev.off()
+
+          df2 <- df_cv %>%
+                filter(shape == shape_typ[k]) %>%
+                droplevels()
+          df2$lbd <- lbda_Vec
+
+          p <- ggplot(data = df2, aes(x=lbd))
+          p <- p + geom_line(aes(y = df2[,'bias'], color = sample), size=1.)
+          p <- beautify(p, legende1, legende2, NULL, cbPalette, lty, 'N', 'italic')
+          p <- p + expand_limits(y=0)
+          p <- p + labs(x=expression(frac(lambda, 1 - e^-lambda)), y=paste0('Coef. variation MOI'))
+           if(name == 'Kenya'){
+              outfile <- paste0(path,"plots/Bias_cv_plots_", dir, "/moi/", "coefvar_moi_year_", estim_Years[k], "_", name, ".pdf")
+          }else{
+              outfile <- paste0(path,"plots/Bias_cv_plots_", dir, "/moi/", "coefvar_", shape_typ[k], "_moi_nloci_", gen[l,1],"_",gen[l,2], "_",name, ".pdf")
+          }
+          pdf(outfile, height=5, width=8)
+          print(p)
+          dev.off()
+        }
+      }
+  }
+}
+
+# Relative path
+path <- "/Volumes/GoogleDrive-117934057836063832284/My Drive/Maths against Malaria/Christian/Models/STRModel/"
+
+# Define data origin ('' <- simualted data, kenya <- kenyan data)
+namelist <- c('') #c('', 'Kenya')
+
+for (name in namelist){
+  
+  # Loading true haplotype parameters for the simulation
+  sim_Param <- readRDS(paste0(path, "dataset/true_Parameters", name, ".rds"))
+
+  # Loading extra parameters
+  extra_Sim_Param  <- readRDS(paste0(path, "dataset/extra_Parameters", name, ".rds"))
+
+  # Simulation parameters
+  n_Lbda        <- extra_Sim_Param[[1]]
+  n_Sim_Loci    <- extra_Sim_Param[[2]]
+  n_Hapl        <- extra_Sim_Param[[3]]
+  n_Freq_Distr  <- extra_Sim_Param[[6]]
+  gen           <- extra_Sim_Param[[7]]
+
+  lbda_Vec      <- sim_Param[[2]]
+  samp_Vec      <- sim_Param[[3]]
+
+  estim_Years   <- c(2005, 2010)
+
+  # Plotting
+  main(sim_Param, name, gen)
+}

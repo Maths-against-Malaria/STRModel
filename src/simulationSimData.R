@@ -36,7 +36,7 @@ NEst <- 50 #10000
 NFreq <- 2
 
 # Extra parameters
-ParExtra <- list(NLbd, Nn, Hvec, NN, NEst, NFreq)
+ParExtra <- list(NLbd, Nn, Hvec, NN, NEst, NFreq, genArch)
 
 # True haplotype frequencies
 Pvec <- vector(mode="list", length=Nn)
