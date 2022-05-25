@@ -549,6 +549,7 @@ strmodel <- function(dat, arch){
   cond1 <- 1 
   t <- 0
   while(cond1>eps && t<500){
+    t <- t+1
     Ccoeff <- 0
     Bcoeff <- num0    # reset B coefficients to 0 in next iteration
     num <- num0       # reset numerator to 0 in next iteration
@@ -581,8 +582,7 @@ strmodel <- function(dat, arch){
       }else{
         ppn <- Bcoeff/(sum(Bcoeff))
     }
-    #ppn    <- Bcoeff/(sum(Bcoeff))
-    #print(ppn)
+
     ### Newton step
     cond2 <- 1
     xt    <- Ccoeff   ### good initial condition

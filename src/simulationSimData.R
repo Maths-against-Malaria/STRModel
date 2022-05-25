@@ -64,24 +64,24 @@ for (i in 1:Nn){
       adhocEstim <- array(0, dim = c(Hvec[i], NEst, NFreq))
       for (cnt in 1:NFreq){
         for (l in 1:NEst){
+          print(l)
           infct              <- datagen(unlist(Pvec[[i]][cnt,]) ,unlist(lbdavec[k]) ,Nvec[j], genArch[i,])      ## Generating data for the simulation
-          #print(infct)
           Estim[,l,cnt]      <- unlist(strmodel(infct, genArch[i,]))                                            ## Evaluating and saving the Estimates
-          adhocEstim[,l,cnt] <- unlist(adhocmodelsim(infct[[1]], infct[[2]], genArch[i,]))                      ## Ad hoc estimates for frequencies
+          #adhocEstim[,l,cnt] <- unlist(adhocmodelsim(infct[[1]], infct[[2]], genArch[i,]))                      ## Ad hoc estimates for frequencies
         }
       }
       lbdalist[[k]] <- Estim
-      lbdalist2[[k]] <- adhocEstim
+      #lbdalist2[[k]] <- adhocEstim
     }
     sizelist[[j]] <- lbdalist
-    sizelist2[[j]] <- lbdalist2
+   # sizelist2[[j]] <- lbdalist2
   }
   out[[i]] <- sizelist
-  out2[[i]] <- sizelist2
+  #out2[[i]] <- sizelist2
 
   # Saving the MOI and frequencies estimates for post-processing
   saveRDS(out, file = paste0(path, "dataset/modelEstimates.rds"))
-  saveRDS(out2, file = paste0(path, "dataset/adhocModelEstimates.rds"))
+  #saveRDS(out2, file = paste0(path, "dataset/adhocModelEstimates.rds"))
 
   # End of simulation warning
   print(paste0("Simulation finished ;)"))
