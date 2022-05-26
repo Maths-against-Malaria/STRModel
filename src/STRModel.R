@@ -655,7 +655,7 @@ adhocmodelsim <- function(X, Nx, arch){
   # extract unambiguous observations
   bin  <- 2^(0:arch[1])
   pick <- (X[,1]+1)%in%bin
-  X1   <- X[pick,]
+  X1   <- matrix(X[pick,], ncol = 3)
   X1[,1] <- sapply((X1[,1]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
   if(!all(is.na(X1))){  # if there are unambiguous infections
     n1 <- nrow(X1)
