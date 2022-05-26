@@ -30,7 +30,7 @@ Nvec <- c(50, 100, 150, 200, 500)
 NN <- length(Nvec)
 
 # Number of estimates generated in the simulation
-NEst <- 50 #10000
+NEst <- 2000 #10000
 
 # Number of frequencies set per (number of loci) case
 NFreq <- 2
@@ -64,7 +64,6 @@ for (i in 1:Nn){
       adhocEstim <- array(0, dim = c(Hvec[i], NEst, NFreq))
       for (cnt in 1:NFreq){
         for (l in 1:NEst){
-          #print(l)
           infct              <- datagen(unlist(Pvec[[i]][cnt,]) ,unlist(lbdavec[k]) ,Nvec[j], genArch[i,])      ## Generating data for the simulation
           Estim[,l,cnt]      <- unlist(strmodel(infct, genArch[i,]))                                            ## Evaluating and saving the Estimates
           adhocEstim[,l,cnt] <- unlist(adhocmodelsim(infct[[1]], infct[[2]], genArch[i,]))                      ## Ad hoc estimates for frequencies
