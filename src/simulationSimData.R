@@ -30,7 +30,7 @@ Nvec <- c(50, 100, 150, 200, 500)
 NN <- length(Nvec)
 
 # Number of estimates generated in the simulation
-NEst <- 2000 #10000
+NEst <- 20#00 #10000
 
 # Number of frequencies set per (number of loci) case
 NFreq <- 2
@@ -50,37 +50,47 @@ True_param <- list(Pvec, lbdavec, Nvec)
 
 # Simulation
 out  <- vector(mode = "list", length = Nn)
+out1 <- vector(mode = "list", length = Nn)
 out2 <- vector(mode = "list", length = Nn)
 
 for (i in 1:Nn){
   print(paste0("processing frequency distributions for m=", genArch[i,1], " and n=",  genArch[i,2], " alleles, respectively."))
   sizelist <- vector(mode = "list", length = NN)
+  sizelist1 <- vector(mode = "list", length = NN)
   sizelist2 <- vector(mode = "list", length = NN)
   for (j in 1:NN){                                                                                ## For each value of the sample size
     lbdalist <- vector(mode = "list", length = NLbd)
+    lbdalist1 <- vector(mode = "list", length = NLbd)
     lbdalist2 <- vector(mode = "list", length = NLbd)
     for (k in 1:NLbd){                                                                            ## For each value of the lambda parameter
       Estim <- array(0, dim = c(Hvecpo[i], NEst, NFreq))
-      adhocEstim <- array(0, dim = c(Hvec[i], NEst, NFreq))
+      adhocEstim1 <- array(0, dim = c(Hvec[i], NEst, NFreq))
+      adhocEstim2 <- array(0, dim = c(Hvec[i], NEst, NFreq))
       for (cnt in 1:NFreq){
         for (l in 1:NEst){
           infct              <- datagen(unlist(Pvec[[i]][cnt,]) ,unlist(lbdavec[k]) ,Nvec[j], genArch[i,])      ## Generating data for the simulation
           Estim[,l,cnt]      <- unlist(strmodel(infct, genArch[i,]))                                            ## Evaluating and saving the Estimates
-          adhocEstim[,l,cnt] <- unlist(adhocmodelsim(infct[[1]], infct[[2]], genArch[i,]))                      ## Ad hoc estimates for frequencies
+          tmp <- unlist(adhocmodelsim(infct[[1]], infct[[2]], genArch[i,]))                      ## Ad hoc estimates for frequencies
+          adhocEstim1[,l,cnt] <- tmp[[1]]                                                        ## Ad hoc estimates for frequencies
+          adhocEstim2[,l,cnt] <- tmp[[2]]                                                        ## Ad hoc estimates for frequencies
         }
       }
       lbdalist[[k]] <- Estim
-      lbdalist2[[k]] <- adhocEstim
+      lbdalist1[[k]] <- adhocEstim1
+      lbdalist2[[k]] <- adhocEstim2
     }
     sizelist[[j]] <- lbdalist
+    sizelist1[[j]] <- lbdalist1
     sizelist2[[j]] <- lbdalist2
   }
   out[[i]] <- sizelist
+  out1[[i]] <- sizelist1
   out2[[i]] <- sizelist2
 
   # Saving the MOI and frequencies estimates for post-processing
   saveRDS(out, file = paste0(path, "dataset/modelEstimates.rds"))
-  saveRDS(out2, file = paste0(path, "dataset/adhocModelEstimates.rds"))
+  saveRDS(out1, file = paste0(path, "dataset/adhocModelEstimates1.rds"))
+  saveRDS(out2, file = paste0(path, "dataset/adhocModelEstimates2.rds"))
 
   # End of simulation warning
   print(paste0("Simulation finished ;)"))

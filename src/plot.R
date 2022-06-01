@@ -168,7 +168,8 @@ main <- function(sim_Param, name, gen){
   if(1==1){ # Plotting prevalence
     # Importing the data to plot
     amb_prev          <- readRDS(paste0(path, "dataset/estim_Amb_Prevalence",   name, ".rds"))
-    relative_prev     <- readRDS(paste0(path, "dataset/estim_Rel_Prevalence",   name, ".rds"))
+    relative_prev1     <- readRDS(paste0(path, "dataset/estim_Rel_Prevalence1",   name, ".rds"))
+    relative_prev2     <- readRDS(paste0(path, "dataset/estim_Rel_Prevalence2",   name, ".rds"))
     conditional_prev  <- readRDS(paste0(path, "dataset/estim_Cond_Prevalence",  name, ".rds"))
 
     true_amb_prev         <- readRDS(paste0(path, "dataset/true_Amb_Prevalence",   name, ".rds"))
@@ -176,7 +177,7 @@ main <- function(sim_Param, name, gen){
     true_conditional_prev <- readRDS(paste0(path, "dataset/true_Cond_Prevalence",  name, ".rds"))
 
     # Plots parameters
-    legende1 <- c('unobservable', 'conditional', 'relative')
+    legende1 <- c('unobservable', 'conditional', 'relative1', 'relative2')
 
     # Position of legend
     pos <- c(0.20, 0.70)
@@ -184,10 +185,11 @@ main <- function(sim_Param, name, gen){
     for(l in 1:n_Sim_Loci){ # 2 or 5 loci
       # Building the prevalence dataframe
       df_ambprev   <- dataframe_builder_prev(amb_prev,         'amb_prev',         l, true_amb_prev)
-      df_relprev   <- dataframe_builder_prev(relative_prev,    'relative_prev',    l, true_relative_prev)
+      df_relprev1   <- dataframe_builder_prev(relative_prev1,    'relative_prev1',    l, true_relative_prev)
+      df_relprev2   <- dataframe_builder_prev(relative_prev2,    'relative_prev2',    l, true_relative_prev)
       df_condprev  <- dataframe_builder_prev(conditional_prev, 'conditional_prev', l, true_conditional_prev)
 
-      df <- rbind(df_ambprev, df_condprev, df_relprev)
+      df <- rbind(df_ambprev, df_condprev, df_relprev1, df_relprev2)
       tru_freq <- sim_Param[[1]][[l]]
 
       for(k in 1:n_Freq_Distr){  # sym or asym

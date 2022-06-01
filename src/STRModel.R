@@ -574,8 +574,7 @@ mle <- function(df, id = TRUE){
 # conditionned on unambiguous observations.
 #################################
 adhocmodel <- function(X, Nx, arch){
-
-  X     <- cbind(X, Nx)
+ X     <- cbind(X, Nx)
   n     <- ncol(X)
   nloci <- n-1
 
@@ -592,7 +591,7 @@ adhocmodel <- function(X, Nx, arch){
     pick1[,i] <- Y[,i] == 1
   }
   pick <- rowSums(pick1) > 0
-  X1   <- matrix(X[pick,], ncol = 3)
+  X1   <- matrix(X[pick,], ncol = (nloci+1))
 
   #X1[,1] <- sapply((X1[,1]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
   if(!all(is.na(X1))){  # if there are unambiguous infections
@@ -603,13 +602,13 @@ adhocmodel <- function(X, Nx, arch){
     X <- matrix(X1, nrow = n1)
 
     # find indexes of multiple infections
-    pick <- rowSums(pick1[pick,]==0) == 1 
+    pick <- rowSums(matrix(pick1[pick,]==0, ncol = 2)) == 1 
     tmp2 <- matrix(X[pick,1:nloci], ncol = nloci)
     idx1 <- which(pick)
 
     if(length(idx1)>0){
       # single infections
-      tmp <- matrix(X[-idx1,], ncol = 3, byrow = TRUE)
+      tmp <- matrix(X[-idx1,], ncol = 3)
       s <- cbind(tmp, tmp[,3])
     }else {
       s <- cbind(X, X[,3])
@@ -653,6 +652,7 @@ adhocmodel <- function(X, Nx, arch){
     # Frequencies estimates
     p <- matrix(0, ncol=nhpl)
   }
+
   list(p[1,], p[2,])
 }
 
@@ -675,7 +675,7 @@ adhocmodelsim <- function(X, Nx, arch){
     pick1[,i] <- Y[,i] == 1
   }
   pick <- rowSums(pick1) > 0
-  X1   <- matrix(X[pick,], ncol = 3)
+  X1   <- matrix(X[pick,], ncol = (nloci+1))
 
   #X1[,1] <- sapply((X1[,1]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
   if(!all(is.na(X1))){  # if there are unambiguous infections
@@ -686,13 +686,13 @@ adhocmodelsim <- function(X, Nx, arch){
     X <- matrix(X1, nrow = n1)
 
     # find indexes of multiple infections
-    pick <- rowSums(pick1[pick,]==0) == 1 
+    pick <- rowSums(matrix(pick1[pick,]==0, ncol = 2)) == 1 
     tmp2 <- matrix(X[pick,1:nloci], ncol = nloci)
     idx1 <- which(pick)
 
     if(length(idx1)>0){
       # single infections
-      tmp <- matrix(X[-idx1,], ncol = 3, byrow = TRUE)
+      tmp <- matrix(X[-idx1,], ncol = 3)
       s <- cbind(tmp, tmp[,3])
     }else {
       s <- cbind(X, X[,3])

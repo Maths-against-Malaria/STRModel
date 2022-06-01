@@ -483,7 +483,7 @@ estim_conditional_prevalence <- function(estim_Param, sim_Param, true_prev, name
   qh_loc
 }
 
-estim_relative_prevalence <- function(estim, name){
+estim_relative_prevalence <- function(estim, name, indx){
   # This function estimates the relative prevalence as defined in the manuscript of tsoungui et.al, titled
   # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from SNPs data"
 
@@ -523,14 +523,15 @@ estim_relative_prevalence <- function(estim, name){
   }
 
   # Saving the estimates
-  saveRDS(qh_loc, file = paste0(path,  "dataset/estim_Rel_Prevalence", name, ".rds"))
+  saveRDS(qh_loc, file = paste0(path,  "dataset/estim_Rel_Prevalence",indx, name, ".rds"))
   qh_loc
 }
 
 main <- function(sim_Param, reshap_Sim_Param, name, gen){
   # Loading estimated haplotype frequencies and MOI
   estim_Param       <- readRDS(paste0(path, "dataset/modelEstimates", name, ".rds"))
-  adhoc_estim_Param <- readRDS(paste0(path, "dataset/adhocModelEstimates", name, ".rds"))
+  adhoc_estim_Param1 <- readRDS(paste0(path, "dataset/adhocModelEstimates1", name, ".rds"))
+  adhoc_estim_Param2 <- readRDS(paste0(path, "dataset/adhocModelEstimates2", name, ".rds"))
 
   # Bias of frequencies and MOI
   bias(estim_Param, sim_Param, name)
@@ -555,7 +556,8 @@ main <- function(sim_Param, reshap_Sim_Param, name, gen){
   estim_conditional_prevalence(estim_Param, sim_Param, true_Conditional_Prev, name, gen)
 
   # Estimated relative prevalence (adhoc Model)
-  estim_relative_prevalence(adhoc_estim_Param, name)
+  estim_relative_prevalence(adhoc_estim_Param1, name, 1)
+  estim_relative_prevalence(adhoc_estim_Param2, name, 2)
 }
  
 # Relative path
