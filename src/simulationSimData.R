@@ -70,7 +70,7 @@ for (i in 1:Nn){
         for (l in 1:NEst){
           infct              <- datagen(unlist(Pvec[[i]][cnt,]) ,unlist(lbdavec[k]) ,Nvec[j], genArch[i,])      ## Generating data for the simulation
           Estim[,l,cnt]      <- unlist(strmodel(infct, genArch[i,]))                                            ## Evaluating and saving the Estimates
-          tmp <- unlist(adhocmodelsim(infct[[1]], infct[[2]], genArch[i,]))                      ## Ad hoc estimates for frequencies
+          tmp <- adhocmodelsim(infct[[1]], infct[[2]], genArch[i,])                      ## Ad hoc estimates for frequencies
           adhocEstim1[,l,cnt] <- tmp[[1]]                                                        ## Ad hoc estimates for frequencies
           adhocEstim2[,l,cnt] <- tmp[[2]]                                                        ## Ad hoc estimates for frequencies
         }

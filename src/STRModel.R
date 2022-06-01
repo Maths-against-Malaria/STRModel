@@ -574,7 +574,8 @@ mle <- function(df, id = TRUE){
 # conditionned on unambiguous observations.
 #################################
 adhocmodel <- function(X, Nx, arch){
- X     <- cbind(X, Nx)
+ 
+  X     <- cbind(X, Nx)
   n     <- ncol(X)
   nloci <- n-1
 
@@ -628,6 +629,8 @@ adhocmodel <- function(X, Nx, arch){
       nl <- length(all)
       h <- matrix(rep(c(y,y[,3]/nl),length(all)), ncol=4, byrow = TRUE)
       h[,idx2] <- all
+      idx3 <- c(1,2)[-idx2] 
+      h[,idx3] <- sapply((h[,idx3]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[idx3]+1),32)]==1)-1)
       # add haplotypes in s
       s <- rbind(s,h)
     }
@@ -652,7 +655,6 @@ adhocmodel <- function(X, Nx, arch){
     # Frequencies estimates
     p <- matrix(0, ncol=nhpl)
   }
-
   list(p[1,], p[2,])
 }
 
@@ -712,6 +714,8 @@ adhocmodelsim <- function(X, Nx, arch){
       nl <- length(all)
       h <- matrix(rep(c(y,y[,3]/nl),length(all)), ncol=4, byrow = TRUE)
       h[,idx2] <- all
+      idx3 <- c(1,2)[-idx2] 
+      h[,idx3] <- sapply((h[,idx3]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[idx3]+1),32)]==1)-1)
       # add haplotypes in s
       s <- rbind(s,h)
     }
