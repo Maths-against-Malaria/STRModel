@@ -583,10 +583,18 @@ adhocmodel <- function(X, Nx, arch){
   nhpl <- prod(arch)
   
   # extract unambiguous observations
-  bin  <- 2^(0:arch[1])
-  pick <- (X[,1]+1)%in%bin
-  X1   <- X[pick,]
-  X1[,1] <- sapply((X1[,1]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
+  bin <- list(2^(0:arch[1]), 2^(0:arch[2]))
+  
+  Y <-  X[,1:2]+1  
+  pick1 <- Y
+  for(i in 1:2){
+    Y[,i] <- sapply((Y[,i]), function(x) sum(as.integer(intToBits(x))[-seq((arch[i]+1),32)]))
+    pick1[,i] <- Y[,i] == 1
+  }
+  pick <- rowSums(pick1) > 0
+  X1   <- matrix(X[pick,], ncol = 3)
+
+  #X1[,1] <- sapply((X1[,1]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
   if(!all(is.na(X1))){  # if there are unambiguous infections
     n1 <- nrow(X1)
     if(is.null(n1)){ # if there is only one unambiguous infection
@@ -595,42 +603,47 @@ adhocmodel <- function(X, Nx, arch){
     X <- matrix(X1, nrow = n1)
 
     # find indexes of multiple infections
-    bin  <- 2^(0:arch[2])
-   # bin <- bin[bin<arch[2]]
-    pick <- (X[,2]+1)%in%bin
-    tmp2 <- matrix(X[!pick,1:nloci], ncol = nloci)
-    idx1 <- which(!pick)
+    pick <- rowSums(pick1[pick,]==0) == 1 
+    tmp2 <- matrix(X[pick,1:nloci], ncol = nloci)
+    idx1 <- which(pick)
 
     if(length(idx1)>0){
       # single infections
-      s <- X[-idx1,]
+      tmp <- matrix(X[-idx1,], ncol = 3, byrow = TRUE)
+      s <- cbind(tmp, tmp[,3])
     }else {
-      s <- X
+      s <- cbind(X, X[,3])
     }
-    
+
+    # Single infections to corresponding haplotypes
+    for(i in 1:2){
+      s[,i] <- sapply((s[,i]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[i]+1),32)]==1)-1)
+    }
+
     # find all the haplotypes in X
     for(i in idx1){
-      y <- X[i,]
-      y2 <- y[2]+1
-      pick <- which(as.integer(intToBits(y2))[-seq((arch[2]+1),32)]==1) 
-      all <- bin[pick]-1
-      h <- matrix(rep(y,length(all)), ncol=3, byrow = TRUE)
-      h[,2] <- all
+      y <- matrix(X[i,], ncol = 3, byrow = TRUE)
+      idx2 <- which(!(y[c(1,2)]+1)%in%2^(0:max(arch)))
+      y2 <- y[idx2]+1
+      all <- which(as.integer(intToBits(y2))[-seq((arch[idx2]+1),32)]==1)-1
+      nl <- length(all)
+      h <- matrix(rep(c(y,y[,3]/nl),length(all)), ncol=4, byrow = TRUE)
+      h[,idx2] <- all
       # add haplotypes in s
       s <- rbind(s,h)
     }
-    s[,2] <- sapply((s[,2]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
+    
     # binary representation
     bin <- c(arch[2],1)
     pp  <- s[,1:2]%*%bin+1
-    pp  <- cbind(pp,s[,3])
+    pp  <- cbind(pp,s[,3:4])
 
     # observed haplotypes
     idx3 <- as.integer(colnames(t(as.data.frame(summary.factor(pp[,1])))))
     
-    # Frequencies estimates
-    p <- matrix(0, ncol=length(idx3))
-    tot <- sum(pp[,2])
+    # Frequencies estimates Method 1
+    p <- matrix(0, ncol=length(idx3), nrow = 2)
+    tot <- colSums(pp[,2:3])
     for (i in idx3){
       idx4 <- which(pp[,1]==i)
       p[,which(i==idx3)] <- sum(pp[idx4,2])/tot
@@ -640,7 +653,7 @@ adhocmodel <- function(X, Nx, arch){
     # Frequencies estimates
     p <- matrix(0, ncol=nhpl)
   }
-  p
+  list(p[1,], p[2,])
 }
 
 adhocmodelsim <- function(X, Nx, arch){
@@ -653,10 +666,18 @@ adhocmodelsim <- function(X, Nx, arch){
   nhpl <- prod(arch)
   
   # extract unambiguous observations
-  bin  <- 2^(0:arch[1])
-  pick <- (X[,1]+1)%in%bin
+  bin <- list(2^(0:arch[1]), 2^(0:arch[2]))
+  
+  Y <-  X[,1:2]+1  
+  pick1 <- Y
+  for(i in 1:2){
+    Y[,i] <- sapply((Y[,i]), function(x) sum(as.integer(intToBits(x))[-seq((arch[i]+1),32)]))
+    pick1[,i] <- Y[,i] == 1
+  }
+  pick <- rowSums(pick1) > 0
   X1   <- matrix(X[pick,], ncol = 3)
-  X1[,1] <- sapply((X1[,1]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
+
+  #X1[,1] <- sapply((X1[,1]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
   if(!all(is.na(X1))){  # if there are unambiguous infections
     n1 <- nrow(X1)
     if(is.null(n1)){ # if there is only one unambiguous infection
@@ -665,42 +686,47 @@ adhocmodelsim <- function(X, Nx, arch){
     X <- matrix(X1, nrow = n1)
 
     # find indexes of multiple infections
-    bin  <- 2^(0:arch[2])
-   # bin <- bin[bin<arch[2]]
-    pick <- (X[,2]+1)%in%bin
-    tmp2 <- matrix(X[!pick,1:nloci], ncol = nloci)
-    idx1 <- which(!pick)
+    pick <- rowSums(pick1[pick,]==0) == 1 
+    tmp2 <- matrix(X[pick,1:nloci], ncol = nloci)
+    idx1 <- which(pick)
 
     if(length(idx1)>0){
       # single infections
-      s <- X[-idx1,]
+      tmp <- matrix(X[-idx1,], ncol = 3, byrow = TRUE)
+      s <- cbind(tmp, tmp[,3])
     }else {
-      s <- X
+      s <- cbind(X, X[,3])
     }
-    
+
+    # Single infections to corresponding haplotypes
+    for(i in 1:2){
+      s[,i] <- sapply((s[,i]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[i]+1),32)]==1)-1)
+    }
+
     # find all the haplotypes in X
     for(i in idx1){
-      y <- X[i,]
-      y2 <- y[2]+1
-      pick <- which(as.integer(intToBits(y2))[-seq((arch[2]+1),32)]==1) 
-      all <- bin[pick]-1
-      h <- matrix(rep(y,length(all)), ncol=3, byrow = TRUE)
-      h[,2] <- all
+      y <- matrix(X[i,], ncol = 3, byrow = TRUE)
+      idx2 <- which(!(y[c(1,2)]+1)%in%2^(0:max(arch)))
+      y2 <- y[idx2]+1
+      all <- which(as.integer(intToBits(y2))[-seq((arch[idx2]+1),32)]==1)-1
+      nl <- length(all)
+      h <- matrix(rep(c(y,y[,3]/nl),length(all)), ncol=4, byrow = TRUE)
+      h[,idx2] <- all
       # add haplotypes in s
       s <- rbind(s,h)
     }
-    s[,2] <- sapply((s[,2]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
+    
     # binary representation
     bin <- c(arch[2],1)
     pp  <- s[,1:2]%*%bin+1
-    pp  <- cbind(pp,s[,3])
+    pp  <- cbind(pp,s[,3:4])
 
     # observed haplotypes
     idx3 <- as.integer(colnames(t(as.data.frame(summary.factor(pp[,1])))))
     
-    # Frequencies estimates
-    p <- matrix(0, ncol=length(idx3))
-    tot <- sum(pp[,2])
+    # Frequencies estimates Method 1
+    p <- matrix(0, ncol=length(idx3), nrow = 2)
+    tot <- colSums(pp[,2:3])
     for (i in idx3){
       idx4 <- which(pp[,1]==i)
       p[,which(i==idx3)] <- sum(pp[idx4,2])/tot
@@ -712,21 +738,25 @@ adhocmodelsim <- function(X, Nx, arch){
   }
 
   ## Ordering the frequencies
-  pp <- p
-  pp <- pp[,order(idx3)]
+  p <- list(p[1,], p[2,])
 
-  if(length(pp)<nhpl){
-    name <- colnames(p)
-    cnt <- 0
-    for (i in 1:nhpl) {
-      if (i%in%name){
-        cnt <- cnt + 1
-      }else{
-        pp <- append(pp, list(x = 0.0), i-1)
+  for(i in 1:2){
+    pp <- p[[i]]
+    pp <- matrix(pp[order(as.integer(idx3))], nrow = 1)
+    colnames(pp) <- idx3
+
+    if(length(pp)<nhpl){
+      name <- colnames(pp)
+      cnt <- 0
+      for (j in 1:nhpl) {
+        if (!(j%in%name)){
+          pp <- append(pp,0.0,after=j-1)
+        }
       }
     }
+    p[[i]] <- pp
   }
-  pp
+  p
 }
 
 #################################
