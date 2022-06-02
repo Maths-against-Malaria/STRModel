@@ -659,6 +659,9 @@ adhocmodel <- function(X, Nx, arch){
 }
 
 adhocmodelsim <- function(X, Nx, arch){
+  X    <- infct[[1]]
+  Nx   <- infct[[2]]
+  arch <- genArch[2,]
 
   X     <- cbind(X, Nx)
   n     <- ncol(X)
@@ -669,7 +672,6 @@ adhocmodelsim <- function(X, Nx, arch){
   
   # extract unambiguous observations
   bin <- list(2^(0:arch[1]), 2^(0:arch[2]))
-  
   Y <-  X[,1:2]+1  
   pick1 <- Y
   for(i in 1:2){
@@ -679,7 +681,6 @@ adhocmodelsim <- function(X, Nx, arch){
   pick <- rowSums(pick1) > 0
   X1   <- matrix(X[pick,], ncol = (nloci+1))
 
-  #X1[,1] <- sapply((X1[,1]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[2]+1),32)]==1)-1)
   if(!all(is.na(X1))){  # if there are unambiguous infections
     n1 <- nrow(X1)
     if(is.null(n1)){ # if there is only one unambiguous infection
@@ -733,7 +734,7 @@ adhocmodelsim <- function(X, Nx, arch){
     tot <- colSums(pp[,2:3])
     for (i in idx3){
       idx4 <- which(pp[,1]==i)
-      p[,which(i==idx3)] <- sum(pp[idx4,2])/tot
+      p[,which(i==idx3)] <- colSums(pp[idx4,2:3])/tot
     }
       colnames(p) <-  idx3
   }else{
