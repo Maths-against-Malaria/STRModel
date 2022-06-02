@@ -532,6 +532,7 @@ main <- function(sim_Param, reshap_Sim_Param, name, gen){
   estim_Param       <- readRDS(paste0(path, "dataset/modelEstimates", name, ".rds"))
   adhoc_estim_Param1 <- readRDS(paste0(path, "dataset/adhocModelEstimates1", name, ".rds"))
   adhoc_estim_Param2 <- readRDS(paste0(path, "dataset/adhocModelEstimates2", name, ".rds"))
+  adhoc_estim_Param3 <- readRDS(paste0(path, "dataset/adhocModelEstimates3", name, ".rds"))
 
   # Bias of frequencies and MOI
   bias(estim_Param, sim_Param, name)
@@ -558,6 +559,7 @@ main <- function(sim_Param, reshap_Sim_Param, name, gen){
   # Estimated relative prevalence (adhoc Model)
   estim_relative_prevalence(adhoc_estim_Param1, name, 1)
   estim_relative_prevalence(adhoc_estim_Param2, name, 2)
+  estim_relative_prevalence(adhoc_estim_Param3, name, 3)
 }
  
 # Relative path
