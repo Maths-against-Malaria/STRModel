@@ -623,10 +623,11 @@ estim_LD <- function(estim, gen, name){
           estfreq <- estim_Param[[l]][[k]][[j]][, , i]
           estfreq <- estfreq[2:(nhapl+1),]
 
-          for(p in 1:NEst){
-            freq <- estfreq[,p]
+          for(p in 1:n_Sampl_Gen){
+            freq <- estfreq
             allelefreq <- matrix(0, ncol=sum(arch))
             tmpDfreq <- matrix(0, ncol=prod(arch))
+            tmpDfreq2 <- matrix(0, ncol=prod(arch))
             tmpWnfreq <- matrix(0, ncol=prod(arch))
             haplfreq <- matrix(freq, nrow = 1)
 
@@ -664,15 +665,15 @@ estim_LD <- function(estim, gen, name){
                 }else{
                   Dmax <- tmp2
                 }
-                tmpDfreq[,idx] <- tmp11*abs(tmpDfreq[,idx])/Dmax     # D'ij
+                tmpDfreq2[,idx] <- tmp11*abs(tmpDfreq[,idx])/Dmax     # D'ij
                 tmpWnfreq[,idx] <- (tmpDfreq[,idx]^2)/tmp11          # Wnij
               }
             }
-            D[,p] <- rowSums(tmpDfreq)   # D'
-            Wn[,p] <- rowSums(tmpWnfreq)/min(arch-1) # Wn
+            D[,p] <- rowSums(tmpDfreq2, na.rm = TRUE)   # D'
+            Wn[,p] <- rowSums(tmpWnfreq, na.rm = TRUE)/min(arch-1) # Wn
           }
-          Dfreq[[i]] <- rowMeans(D)
-          Wnfreq[[i]] <- rowMeans(Wn)
+          Dfreq[[i]] <- rowMeans(D, na.rm = TRUE)
+          Wnfreq[[i]] <- rowMeans(Wn, na.rm = TRUE)
         }
         Dlamb[[j]] <- Dfreq
         Wnlamb[[j]] <- Wnfreq
@@ -680,8 +681,8 @@ estim_LD <- function(estim, gen, name){
       DSamp[[k]] <- Dlamb
       WnSamp[[k]] <- Wnlamb
     }
-    Dloc[[k]] <- DSamp
-    Wnloc[[k]] <- WnSamp
+    Dloc[[l]] <- DSamp
+    Wnloc[[l]] <- WnSamp
   }
   # Save LD estimates
   saveRDS(Dloc, file = paste0(path, "dataset/estim_LD_D", name, ".rds"))
@@ -711,6 +712,9 @@ main <- function(sim_Param, reshap_Sim_Param, name, gen){
   # True relative prevalence
   true_Relative_Prev     <- true_relative_prevalence(reshap_Sim_Param, sim_Param, name, gen)
 
+  # True linkage disequilibrium measure
+  true_LD(sim_Param[[1]], gen, name)
+
 
   # Estimated ambiguous prevalence
   estim_amb_prevalence(estim_Param, true_Amb_Prev, name)
@@ -722,6 +726,9 @@ main <- function(sim_Param, reshap_Sim_Param, name, gen){
   estim_relative_prevalence(adhoc_estim_Param1, name, 1)
   estim_relative_prevalence(adhoc_estim_Param2, name, 2)
   estim_relative_prevalence(adhoc_estim_Param3, name, 3)
+
+  # Estimated linkage disequilibrium measure
+  estim_LD(estim_Param, gen, name)
 }
  
 # Relative path
