@@ -2,7 +2,7 @@
 # Objective    : Plot the bias and coefficient of variation of the estimates
 # Created by   : christian Tsoungui Obama
 # Created on   : 03.04.21
-# Last modified: 14.04.22
+# Last modified: 10.08.22
 
 # Importing libraries
 library(dplyr)
@@ -115,6 +115,7 @@ dataframe_builder_LD <- function(ld_estim, type_ld, locNumb, true_ld){
       }
     }
   }
+
   df1[,'ld'] <- exp_prev
   df1$type <- as.factor(type_ld)
   df1$vers <- as.factor('estimate')
@@ -124,7 +125,7 @@ dataframe_builder_LD <- function(ld_estim, type_ld, locNumb, true_ld){
   colnames(df2) <- cnames
   samp_vec <- rep(samp_Vec, each=NRow/(length(samp_Vec)*n_Freq_Distr*n_Hapl[locNumb]))
   df2[,'sample'] <- as.factor(rep(samp_vec, n_Freq_Distr))
-  df2[,'freq']   <- 1 #as.factor(rep(1:n_Hapl [locNumb], NRow/(length(lbda_Vec)*n_Hapl [locNumb])))
+  df2[,'freq']   <- 1
   df2[,'shape']  <- as.factor(rep(c("sym", "asym"), each=NRow/(n_Freq_Distr*n_Hapl[locNumb])))
 
   exp_prev <- c()
@@ -212,14 +213,13 @@ main <- function(sim_Param, name, gen){
   # Color palette (color-blind friendly) for the plots
   cbPalette <- c(rgb(0,0,0), rgb(.35, .70, .90), rgb(.90,.60,0), rgb(0,.60,.50), rgb(0,.45,.70), rgb(.80,.40,0), rgb(.5, .5, .5))
   lty       <- c("dashed", "solid")
+  lty2       <- c("solid", "dashed", "twodash")
   legende2  <- c('estimate', 'true')
 
-  if(1==0){ # Plotting prevalence
+  if(1==1){ # Plotting prevalence
     # Importing the data to plot
     amb_prev           <- readRDS(paste0(path, "dataset/estim_Amb_Prevalence",   name, ".rds"))
     relative_prev1     <- readRDS(paste0(path, "dataset/estim_Rel_Prevalence1",   name, ".rds"))
-    relative_prev2     <- readRDS(paste0(path, "dataset/estim_Rel_Prevalence2",   name, ".rds"))
-    relative_prev3     <- readRDS(paste0(path, "dataset/estim_Rel_Prevalence3",   name, ".rds"))
     conditional_prev   <- readRDS(paste0(path, "dataset/estim_Cond_Prevalence",  name, ".rds"))
 
     true_amb_prev         <- readRDS(paste0(path, "dataset/true_Amb_Prevalence",   name, ".rds"))
@@ -227,7 +227,7 @@ main <- function(sim_Param, name, gen){
     true_conditional_prev <- readRDS(paste0(path, "dataset/true_Cond_Prevalence",  name, ".rds"))
 
     # Plots parameters
-    legende1 <- c('unobservable', 'conditional', 'relative1', 'relative2', 'relative3')
+    legende1 <- c('unobservable', 'conditional', 'relative')
 
     # Position of legend
     pos <- c(0.20, 0.70)
@@ -236,11 +236,9 @@ main <- function(sim_Param, name, gen){
       # Building the prevalence dataframe
       df_ambprev    <- dataframe_builder_prev(amb_prev,         'amb_prev',         l, true_amb_prev)
       df_relprev1   <- dataframe_builder_prev(relative_prev1,    'relative_prev1',    l, true_relative_prev)
-      df_relprev2   <- dataframe_builder_prev(relative_prev2,    'relative_prev2',    l, true_relative_prev)
-      df_relprev3   <- dataframe_builder_prev(relative_prev3,    'relative_prev3',    l, true_relative_prev)
       df_condprev   <- dataframe_builder_prev(conditional_prev, 'conditional_prev', l, true_conditional_prev)
 
-      df <- rbind(df_ambprev, df_condprev, df_relprev1, df_relprev2, df_relprev3)
+      df <- rbind(df_ambprev, df_condprev, df_relprev1)
       tru_freq <- sim_Param[[1]][[l]]
 
       for(k in 1:n_Freq_Distr){  # sym or asym
@@ -277,26 +275,86 @@ main <- function(sim_Param, name, gen){
     }
   }
 
+  if(1==1){ # Plotting relative vs weighted vs single
+    # Importing the data to plot
+    relative_prev1     <- readRDS(paste0(path, "dataset/estim_Rel_Prevalence1",   name, ".rds"))
+    relative_prev2     <- readRDS(paste0(path, "dataset/estim_Rel_Prevalence2",   name, ".rds"))
+    relative_prev3     <- readRDS(paste0(path, "dataset/estim_Rel_Prevalence3",   name, ".rds"))
+
+    true_relative_prev    <- readRDS(paste0(path, "dataset/true_Rel_Prevalence",   name, ".rds"))
+
+    # Plots parameters
+    legende1 <- c('Relative', 'Weighted', 'Single')
+
+    # Position of legend
+    pos <- c(0.18, 0.80)
+
+    for(l in 1:n_Sim_Loci){ # 2 or 5 loci
+      # Building the prevalence dataframe
+      df_relprev1   <- dataframe_builder_prev(relative_prev1, 'relative_prev1', l, true_relative_prev) # frequency estimates from framework
+      df_relprev2   <- dataframe_builder_prev(relative_prev2, 'relative_prev2', l, true_relative_prev) # frequency estimates weighted
+      df_relprev3   <- dataframe_builder_prev(relative_prev3, 'relative_prev3', l, true_relative_prev) # frequency estimates assuming only single observations
+
+      df <- rbind(df_relprev1, df_relprev2, df_relprev3)
+      tru_freq <- sim_Param[[1]][[l]]
+
+      for(k in 1:n_Freq_Distr){  # sym or asym
+        trufreq_vec <- tru_freq[k,]
+
+        for(i in 1:n_Hapl[l]){
+          if(trufreq_vec[i] != 0){
+              for(j in samp_Vec){
+                df1 <- df %>%
+                      filter(sample == j, freq == i, shape == shape_typ[k], vers == 'estimate') %>%
+                      droplevels()
+
+                df1$psiVec <- psi(lbda_Vec)
+                
+                p <- ggplot(data = df1, aes(x=psiVec))
+                p <- p + geom_line(aes(y = df1[,'prev'], color = type), size=1.)
+                p <- p + geom_hline(yintercept = round(trufreq_vec[i], 3), linetype="dashed", color = "grey")
+                p <- beautify(p, legende1, legende2, pos, cbPalette, lty, NULL, NULL)
+                if(name == 'Kenya'){
+                    p <- p + labs(x=expression(frac(lambda, 1 - e^-lambda)), y="", title=paste0("p = ", round(trufreq_vec[i], 3), ", N = ", j, ", year = ", estim_Years[k]))
+                    outfile <- paste0(path,"plots/Prev_plots_", dir, "/prev_freq_", i, "_SSize_", j, "_year_", estim_Years[k], "_", name, ".pdf")
+                }else{
+                    p <- p + labs(x=expression(frac(lambda, 1 - e^-lambda)), y="", title=paste0("p = ", round(trufreq_vec[i], 3), ", N = ", j, ", m = ", gen[l,1], ", n = ", gen[l,2]))
+                    outfile <- paste0(path,"plots/Prev_plots_", dir, "/prev_adhocVS_", shape_typ[k], "_freq_", i, "_SSize_", j, "_nloci_", gen[l,1],"_",gen[l,2], "_", name, ".pdf")
+                }
+
+                pdf(outfile, height=5, width=8)
+                print(p)
+                dev.off()
+              }
+          }
+        }
+      }
+    }
+  }
+
   if(1==1){ # Plotting LD
     # Importing the data to plot
     D_ld      <- readRDS(paste0(path, "dataset/estim_LD_D",   name, ".rds"))
-    Wn_ld     <- readRDS(paste0(path, "dataset/estim_LD_Wn",   name, ".rds"))
+    r_ld      <- readRDS(paste0(path, "dataset/estim_LD_r",   name, ".rds"))
+    Q_ld      <- readRDS(paste0(path, "dataset/estim_LD_Q",   name, ".rds"))
 
-    true_D_ld         <- readRDS(paste0(path, "dataset/true_LD_D",   name, ".rds"))
-    true_Wn_ld    <- readRDS(paste0(path, "dataset/true_LD_Wn",   name, ".rds"))
+    true_D_ld    <- readRDS(paste0(path, "dataset/true_LD_D",   name, ".rds"))
+    true_r_ld    <- readRDS(paste0(path, "dataset/true_LD_r",   name, ".rds"))
+    true_Q_ld    <- readRDS(paste0(path, "dataset/true_LD_Q",   name, ".rds"))
 
     # Plots parameters
-    legende1 <- c("D'", expression(paste(W[n]^2)))
+    legende1 <- c("D'", expression(r^2), expression(Q^'*'))
 
     # Position of legend
     pos <- NULL #c(0.20, 0.70)
 
     for(l in 1:n_Sim_Loci){ # 2 or 5 loci
       # Building the prevalence dataframe
-      df_D_ld    <- dataframe_builder_LD(D_ld, 'D', l, true_D_ld)
-      df_Wn_ld   <- dataframe_builder_LD(Wn_ld, 'Wn',l, true_Wn_ld)
+      df_D_ld   <- dataframe_builder_LD(D_ld, 'D', l, true_D_ld)
+      df_r_ld   <- dataframe_builder_LD(r_ld, 'r',l, true_r_ld)
+      df_Q_ld   <- dataframe_builder_LD(Q_ld, 'Q',l, true_Q_ld)
 
-      df <- rbind(df_D_ld, df_Wn_ld)
+      df <- rbind(df_D_ld, df_r_ld, df_Q_ld)
 
       for(k in 1:n_Freq_Distr){  # sym or asym
         for(j in samp_Vec){
@@ -308,6 +366,8 @@ main <- function(sim_Param, name, gen){
           
           p <- ggplot(data = df1, aes(x=psiVec))
           p <- p + geom_line(aes(y = df1[,'ld'], color = type, linetype = vers), size=1.)
+          p <- p + expand_limits(y = 0)
+          p <- p + scale_y_continuous(limits = c(0, 1))
           p <- beautify(p, legende1, legende2, pos, cbPalette, lty, NULL, NULL)
           if(name == 'Kenya'){
               p <- p + labs(x=expression(frac(lambda, 1 - e^-lambda)), y="", title=paste0("N = ", j, ", year = ", estim_Years[k]))
@@ -325,9 +385,97 @@ main <- function(sim_Param, name, gen){
     }
   }
 
+  if(1==1){ # Plotting LD vs Adhoc LD
+    # Importing the data to plot
+    D_ld      <- readRDS(paste0(path, "dataset/estim_LD_D",   name, ".rds"))
+    r_ld      <- readRDS(paste0(path, "dataset/estim_LD_r",   name, ".rds"))
+    Q_ld      <- readRDS(paste0(path, "dataset/estim_LD_Q",   name, ".rds"))
+
+    adhoc_D_ld1  <- list(readRDS(paste0(path, "dataset/adhocModelDpEstimates1_1",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelDpEstimates1_2",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelDpEstimates1_3",  name, ".rds")))
+    adhoc_r_ld1  <- list(readRDS(paste0(path, "dataset/adhocModelrEstimates1_1",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelrEstimates1_2",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelrEstimates1_3",   name, ".rds")))
+    adhoc_Q_ld1  <- list(readRDS(paste0(path, "dataset/adhocModelQEstimates1_1",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelQEstimates1_2",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelQEstimates1_3",   name, ".rds")))
+
+    adhoc_D_ld2  <- list(readRDS(paste0(path, "dataset/adhocModelDpEstimates2_1",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelDpEstimates2_2",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelDpEstimates2_3",  name, ".rds")))
+    adhoc_r_ld2  <- list(readRDS(paste0(path, "dataset/adhocModelrEstimates2_1",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelrEstimates2_2",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelrEstimates2_3",   name, ".rds")))
+    adhoc_Q_ld2  <- list(readRDS(paste0(path, "dataset/adhocModelQEstimates2_1",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelQEstimates2_2",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelQEstimates2_3",   name, ".rds")))
+
+    true_D_ld     <- readRDS(paste0(path, "dataset/true_LD_D",  name, ".rds"))
+    true_r_ld    <- readRDS(paste0(path, "dataset/true_LD_r",   name, ".rds"))
+    true_Q_ld    <- readRDS(paste0(path, "dataset/true_LD_Q",   name, ".rds"))
+
+    # Plots parameters
+    legendeD <- c("D'", expression(D[w]^"'"), expression(D[s]^"'"))
+    legendeR <- c( expression(paste(r^2)), expression(r[w]^2), expression(r[s]^2))
+    legendeQ <- c( expression(Q^"*"), expression(Q[w]^"*"), expression(Q[s]^"*"))
+
+    # Position of legend
+    pos <- NULL # c(0.15, 0.55)
+
+    for(l in 1:n_Sim_Loci){ # 2 or 5 loci
+      # Building the prevalence dataframe
+      df_D_ld   <- dataframe_builder_LD(D_ld, 'D', l, true_D_ld)
+      df_r_ld   <- dataframe_builder_LD(r_ld, 'r', l, true_r_ld)
+      df_Q_ld   <- dataframe_builder_LD(Q_ld, 'Q', l, true_Q_ld)
+
+      df_D_ld1   <- dataframe_builder_LD(adhoc_D_ld1, 'adhD1', l, true_D_ld)
+      df_D_ld2   <- dataframe_builder_LD(adhoc_D_ld2, 'adhD2', l, true_D_ld)
+
+      df_r_ld1   <- dataframe_builder_LD(adhoc_r_ld1, 'adhr1', l, true_r_ld)
+      df_r_ld2   <- dataframe_builder_LD(adhoc_r_ld2, 'adhr2', l, true_r_ld)
+
+      df_Q_ld1   <- dataframe_builder_LD(adhoc_Q_ld1, 'adhQ1', l, true_Q_ld)
+      df_Q_ld2   <- dataframe_builder_LD(adhoc_Q_ld2, 'adhQ2', l, true_Q_ld)
+
+      df <- rbind(df_D_ld, df_D_ld1, df_D_ld2, df_r_ld, df_r_ld1, df_r_ld2, df_Q_ld, df_Q_ld1, df_Q_ld2)
+
+      for(k in 1:n_Freq_Distr){  # sym or asym
+        for(j in samp_Vec){
+          for (m in c('D', 'r', 'Q')){
+            legende1 <- legendeD
+            if(m == 'r'){
+              legende1 <- legendeR
+            }
+            if (m == 'Q') {
+               legende1 <- legendeQ
+            }
+           
+            df11 <- df %>%
+                  filter(sample == j, shape == shape_typ[k], type %in% c(m, paste0('adh',m, '1'), paste0('adh',m, '2')), vers == 'estimate') %>%
+                  droplevels()
+
+            df12 <- df %>%
+                  filter(sample == j, shape == shape_typ[k], type == m, vers == 'true') %>%
+                  droplevels()
+
+            df1 <- rbind(df11, df12)
+
+            df1$psiVec <- psi(lbda_Vec)
+            
+            p <- ggplot(data = df1, aes(x=psiVec))
+            p <- p + geom_line(aes(y = df1[,'ld'], color = type, linetype = vers), size=1.)
+            p <- p + expand_limits(y = 0)
+            p <- p + scale_y_continuous(limits = c(0, 1))
+            p <- beautify(p, legende1, legende2, pos, cbPalette, lty2, NULL, NULL)
+            if(name == 'Kenya'){
+                p <- p + labs(x=expression(frac(lambda, 1 - e^-lambda)), y="", title=paste0("N = ", j, ", year = ", estim_Years[k]))
+                outfile <- paste0(path,"plots/LD_plots_", dir, "/ldvsADH_SSize_",m,"_", j, "_year_", estim_Years[k], "_", name, ".pdf")
+            }else{
+                p <- p + labs(x=expression(frac(lambda, 1 - e^-lambda)), y="", title=paste0("N = ", j, ", m = ", gen[l,1], ", n = ", gen[l,2]))
+                outfile <- paste0(path,"plots/LD_plots_", dir, "/ldvsADH_", shape_typ[k], "_SSize_",m,"_", j, "_nloci_", gen[l,1],"_",gen[l,2], "_", name, ".pdf")
+            }
+
+            pdf(outfile, height=5, width=8)
+            print(p)
+            dev.off()
+          }
+        }
+      }
+    }
+  }
+
   legende1  <- samp_Vec
   
-  if(1==0){ # Plotting bias for haplotype frequencies
+  if(1==1){ # Plotting bias for haplotype frequencies
     # Importing the data to plot
     freqbias <- readRDS(paste0(path, "dataset/freqbias", name, ".rds"))
 
@@ -366,7 +514,7 @@ main <- function(sim_Param, name, gen){
     }
   }
 
-  if(1==0){ # Plotting bias and coefficient of variation for MOI
+  if(1==1){ # Plotting bias and coefficient of variation for MOI
     # Importing the data to plot
     moibias  <- readRDS(paste0(path, "dataset/moibias", name, ".rds"))
     moicv    <- readRDS(paste0(path, "dataset/moicv", name, ".rds"))
@@ -419,6 +567,66 @@ main <- function(sim_Param, name, gen){
           dev.off()
         }
       }
+  }
+
+  if(1==1){ # Plotting bias and standard deviation LD
+    # Importing the data to plot
+    ldtype <- c('D', 'r', 'Q')
+    ldlabel <- c("D'", paste(expression(r^2)), "Q*")
+    idx <- c('w', 's')
+
+    # Plots parameters
+    legendeD <- c("D'", expression(D[w]^"'"), expression(D[s]^"'"))
+    legendeR <- c( expression(paste(r^2)), expression(r[w]^2), expression(r[s]^2))
+    legendeQ <- c( expression(Q^"*"), expression(Q[w]^"*"), expression(Q[s]^"*"))
+    
+    legende <- list(legendeD, legendeR, legendeQ)
+    for(i in 1:3){
+      LDcv    <- readRDS(paste0(path, "dataset/LDcv_", paste0('',ldtype[i]), "_", 3, name, ".rds"))
+      LDcv1   <- readRDS(paste0(path, "dataset/LDcv_", paste0('adhoc',ldtype[i]), "_", 1, name, ".rds"))
+      LDcv2   <- readRDS(paste0(path, "dataset/LDcv_", paste0('adhoc',ldtype[i]), "_", 2, name, ".rds"))
+
+      if(i == 1){
+        legende2 <- legendeD
+      }else if (i == 2) {
+          legende2 <- legendeR
+      }else{
+        legende2 <- legendeQ
+      }
+
+      for(l in 1:n_Sim_Loci){ # 2 or 5 loci
+        # Building the prevalence dataframe
+        df_cv   <- dataframe_builder_Moiperf(LDcv, l)
+        df_cv$vers <- ldtype[i]
+        df_cv1   <- dataframe_builder_Moiperf(LDcv1, l)
+        df_cv1$vers <- paste(ldtype[i],"w")
+        df_cv2   <- dataframe_builder_Moiperf(LDcv2, l)
+        df_cv2$vers <- paste(ldtype[i],"s")
+
+        df <- rbind(df_cv, df_cv1, df_cv2)
+
+        for(k in 1:n_Freq_Distr){  # sym or asym
+          df1 <- df %>%
+            filter(shape == shape_typ[k]) %>%
+            droplevels()
+          df1$lbd <- lbda_Vec
+
+          p <- ggplot(data = df1, aes(x=lbd))
+          p <- p + geom_line(aes(y = df1[,'bias'], color = sample, linetype = vers), size=1.)
+          p <- beautify(p, legende1, legende2, NULL, cbPalette, lty2, 'N', 'italic')
+          p <- p + expand_limits(y=0)
+          p <- p + labs(x=expression(frac(lambda, 1 - e^-lambda)), y=paste('Variance ', ldlabel[i]), title=paste0("m = ", gen[l,1], ", n = ", gen[l,2]))
+          if(name == 'Kenya'){
+              outfile <- paste0(path,"plots/Bias_cv_plots_", dir, "/ld/", "coefvar_moi_year_", estim_Years[k], "_", name, ".pdf")
+          }else{
+              outfile <- paste0(path,"plots/Bias_cv_plots_", dir, "/ld/", "coefvar_ldvsadhoc_", ldtype[i], "_", shape_typ[k], "_moi_nloci_", gen[l,1],"_",gen[l,2], "_",name, ".pdf")
+          }
+          pdf(outfile, height=5, width=8)
+          print(p)
+          dev.off()
+        }
+      }
+    }    
   }
 }
 

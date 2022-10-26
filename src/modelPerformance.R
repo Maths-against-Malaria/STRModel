@@ -3,7 +3,7 @@
 #                and the estimates of prevalence
 # Created by   : Christian Tsoungui Obama
 # Created on   : 05.05.22
-# Last modified: 23.05.22
+# Last modified: 21.09.22
 
 # Importing libraries
 library(wordspace)
@@ -45,15 +45,16 @@ setUh <- function(haplo, cardUh, arch){
   uh
 }
 
-bias     <- function(estim_Param, sim_Param, name){
+bias     <- function(sim_Param, name){#(estim_Param, sim_Param, name){
   # This function implements bias of mean MOI and haplotype frequencies as defined in the manuscript
   # "A maximum-likelihood method to estimate haplotype frequencies and prevalence 
-  # alongside multiplicity of infection from SNPs data"
+  # alongside multiplicity of infection from Microatellite data"
 
   moibiasloc <- vector(mode = "list", length = n_Sim_Loci)
   freqbiasloc <- vector(mode = "list", length = n_Sim_Loci)
 
   for (l in 1:n_Sim_Loci){   # For each number of locus
+    estim_Param        <- readRDS(paste0(path, "dataset/modelEstimates_", l, name, ".rds"))
     freqbiasSamp <- vector(mode = "list", length = n_Sampl)
     moibiasSamp  <- vector(mode = "list", length = n_Sampl)
 
@@ -71,7 +72,7 @@ bias     <- function(estim_Param, sim_Param, name){
 
         for (i in 1:n_Freq_Distr){ # For each choice of true frequency distribution
           # Access each of the 10000 estimates
-          tmp1 <- estim_Param[[l]][[k]][[j]][, , i]
+          tmp1 <- estim_Param[[k]][[j]][, , i] #[[l]][[k]][[j]][, , i]
 
           # True frequencies
           tmp2 <- t(sim_Param[[1]][[l]])
@@ -106,14 +107,15 @@ bias     <- function(estim_Param, sim_Param, name){
   saveRDS(moibiasloc, file = paste0(path, "dataset/moibias",name ,".rds"))
 }
 
-coefvar  <- function(estim_Param, sim_Param, name){
+coefvar  <- function(sim_Param, name){#(estim_Param, sim_Param, name){
   # This function implements coefficient of variation of mean MOI as defined in the manuscript
   # "A maximum-likelihood method to estimate haplotype frequencies and prevalence 
-  # alongside multiplicity of infection from SNPs data"
+  # alongside multiplicity of infection from Microatellite data"
 
   moicvloc <- vector(mode = "list", length = n_Sim_Loci)
 
   for (l in 1:n_Sim_Loci){   # For each number of locus
+    estim_Param        <- readRDS(paste0(path, "dataset/modelEstimates_", l, name, ".rds"))
     moicvSamp  <- vector(mode = "list", length = n_Sampl)
 
     # Number of haplotypes
@@ -128,7 +130,7 @@ coefvar  <- function(estim_Param, sim_Param, name){
 
         for (i in 1:n_Freq_Distr){ # For each choice of true frequency distribution
           # Access each of the 10000 estimates
-          tmp1 <- estim_Param[[l]][[k]][[j]][, , i]
+          tmp1 <- estim_Param[[k]][[j]][, , i]#estim_Param[[l]][[k]][[j]][, , i]
 
           # Remove the estimates of Lambda that yield an "Infinite mean MOI"
           mean_moi_estim <- psi(tmp1[1, ])
@@ -151,9 +153,50 @@ coefvar  <- function(estim_Param, sim_Param, name){
   saveRDS(moicvloc, file = paste0(path, "dataset/moicv", name, ".rds"))
 }
 
+coefvar_LD  <- function(estimLD, true_LD, ldtype, jj, name){
+  # This function implements coefficient of variation of Linkage disequilibrium adhoc measures
+  #  as defined in the manuscript "A maximum-likelihood method to estimate haplotype frequencies and prevalence 
+  # alongside multiplicity of infection from Microatellite data"
+
+  moicvloc <- vector(mode = "list", length = n_Sim_Loci)
+
+  for (l in 1:n_Sim_Loci){   # For each number of locus
+    moicvSamp  <- vector(mode = "list", length = n_Sampl)
+
+    for (k in 1:n_Sampl){  # For each sample size
+      moicv_lamb  <- vector(mode = "list", length = n_Freq_Distr)
+
+      for (j in 1:n_Lbda){ # For each true Lambda
+        moi_cv  <- vector(mode = "list", length = n_Freq_Distr)
+
+        for (i in 1:n_Freq_Distr){ # For each choice of true frequency distribution
+          # Access each of the 10000 estimates
+          if (ldtype %in% c('D', 'Q', 'r')){
+            tmp1   <- estimLD[[l]][[k]][[j]][[i]] 
+          }else{
+           tmp1   <- estimLD[[l]][[k]][[j]][, , i] 
+          }
+          
+          # Dimensionless coefficient of variation of MOI
+          moicv <- sd(tmp1, na.rm = TRUE)
+
+          # Save moi coefficient of variation in list
+          moi_cv[[i]]  <- moicv
+        }
+        moicv_lamb[[j]]  <- moi_cv
+      }
+      moicvSamp[[k]]  <- moicv_lamb
+    }
+    moicvloc[[l]]  <- moicvSamp
+  }
+
+  # Saving the estimates
+  saveRDS(moicvloc, file = paste0(path, "dataset/LDcv_", ldtype, "_", jj, name, ".rds"))
+}
+
 true_amb_prevalence  <- function(reshap_Sim_Param, name){
   # This function implements the true ambiguous prevalence as defined in the manuscript of tsoungui et.al, titled
-  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from SNPs data"
+  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from Microatellite data"
 
   qh_loc <- vector(mode = "list", length = n_Sim_Loci)
 
@@ -186,7 +229,7 @@ true_amb_prevalence  <- function(reshap_Sim_Param, name){
 
 true_conditional_prevalence <- function(reshap_Sim_Param, sim_Param, name, gen){
   # This function implements the true conditional prevalence as defined in the manuscript of tsoungui et.al, titled
-  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from SNPs data"
+  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from Microatellite data"
  
   qh_loc <- vector(mode = "list", length = n_Sim_Loci)
 
@@ -266,7 +309,7 @@ true_conditional_prevalence <- function(reshap_Sim_Param, sim_Param, name, gen){
 
 true_relative_prevalence    <- function(reshap_Sim_Param, sim_Param, name, gen){
   # This function implements the true relative prevalence as defined in the manuscript of tsoungui et.al, titled
-  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from SNPs data"
+  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from Microatellite data"
  
   qh_loc <- vector(mode = "list", length = n_Sim_Loci)
 
@@ -336,80 +379,73 @@ true_relative_prevalence    <- function(reshap_Sim_Param, sim_Param, name, gen){
   qh_loc
 }
 
-true_LD <- function(freq, gen, name){
-  # This function implements the true linkage disequilibrium measures (D', Wn^2) as defined in the manuscript of Tsoungui et.al, titled
+true_LD <- function(haplfreq, gen, name){
+  # This function implements the true linkage disequilibrium measures (D', r^2) as defined in the manuscript of Tsoungui et.al, titled
   # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from STR data"
 
   D_loc <- vector(mode = "list", length = n_Sim_Loci)
-  Wn_loc <- vector(mode = "list", length = n_Sim_Loci)
+  r_loc <- vector(mode = "list", length = n_Sim_Loci)
+  Q_loc <- vector(mode = "list", length = n_Sim_Loci)
 
   for (i in 1:n_Sim_Loci){
     D_loc[[i]] <- vector(mode = "list", length = n_Freq_Distr)
-    Wn_loc[[i]] <- vector(mode = "list", length = n_Freq_Distr)
-    
+    r_loc[[i]] <- vector(mode = "list", length = n_Freq_Distr)
+    Q_loc[[i]] <- vector(mode = "list", length = n_Freq_Distr)
     arch <- gen[i,]
-    allelefreq <- matrix(0, nrow = n_Freq_Distr, ncol=sum(arch))
-    Dfreq <- matrix(0, nrow = n_Freq_Distr, ncol=prod(arch))
-    Wnfreq <- matrix(0, nrow = n_Freq_Distr, ncol=prod(arch))
-    haplfreq <- freq[[i]]
-
-    for(a1 in 0:(arch[1]-1)){
-      for(a2 in 0:(arch[2]-1)){
-        idx <- (arch[2]*a1 + a2) + 1
-        allelefreq[,(a1+1)] <- allelefreq[,(a1+1)] + haplfreq[,idx]
-      }
-    }
-
-    for(a2 in 0:(arch[2]-1)){
-      for(a1 in 0:(arch[1]-1)){
-        idx <- (arch[2]*a1 + a2) + 1
-        allelefreq[,(arch[1]+a2+1)] <- allelefreq[,(arch[1]+a2+1)] + haplfreq[,idx]
-      }
-    }
-
-    for(a1 in 0:(arch[1]-1)){
-      for(a2 in 0:(arch[2]-1)){
-        idx <- (arch[2]*a1 + a2) + 1
-        Dfreq[,idx] <- haplfreq[,idx] - allelefreq[,(a1+1)]*allelefreq[,(arch[1]+a2+1)] # Dij
-
-        
-        tmp11 <- allelefreq[,(a1+1)]*allelefreq[,(arch[1]+a2+1)]             # PiPj
-        tmp12 <- (1-allelefreq[,(a1+1)])*(1-allelefreq[,(arch[1]+a2+1)])     # (1-Pi)(1-Pj)
-        tmp1 <- apply(cbind(tmp11, tmp12),1,max) 
-
-        tmp21 <- allelefreq[,(a1+1)]*(1-allelefreq[,(arch[1]+a2+1)])         # Pi(1-Pj)
-        tmp22 <- (1-allelefreq[,(a1+1)])*allelefreq[,(arch[1]+a2+1)]         # (1-Pi)Pj
-        tmp2 <- apply(cbind(tmp21, tmp22),1,max)
-
-        cond <- sum(Dfreq[,idx] <= 0.0) == 2
-        if(cond){
-          Dmax <- tmp1
-        }else{
-          Dmax <- tmp2
-        }
-        Dfreq[,idx] <- tmp11*abs(Dfreq[,idx])/Dmax     # D'ij
-        Wnfreq[,idx] <- (Dfreq[,idx]^2)/tmp11          # Wnij
-      }
-    }
-
-    tmp_Wn <- rowSums(Wnfreq)/min(arch-1) 
+  
     for (j in 1:n_Freq_Distr){
-      D_loc[[i]][[j]] <- rowSums(Dfreq)[j]   # D'
-      Wn_loc[[i]][[j]] <-  tmp_Wn[[j]]       # Wn
+      freq <- haplfreq[[i]][j,]
+      pmat  <- matrix(freq, arch)
+      Afreq <- rowSums(pmat)
+      Bfreq <- colSums(pmat)
+
+      pij   <- Afreq%*%t(Bfreq)        # pipj
+      picjc <- (1-Afreq)%*%t(1-Bfreq)  # (1-pi)(1-pj)
+      picj  <- (1-Afreq)%*%t(Bfreq)    # (1-pi)pj
+      pijc  <- Afreq%*%t(1-Bfreq)      # pi(1-pj)
+
+      D     <- round(pmat - pij, 3)              # Dij
+      pick  <- D > 0
+
+      D_pos       <- array(0, arch)
+      D_pos[pick] <- D[pick]
+
+      D_neg        <- array(0, arch)
+      D_neg[!pick] <- D[!pick]
+
+      Dmax_pos  <- D
+      Dmax_neg  <- D
+
+      Dmax_pos  <- do.call(pmin, list(picj, pijc))  # if Dij > 0
+      Dmax_neg  <- do.call(pmin, list(pij, picjc))  # if Dij < 0
+
+      pij_pos       <- array(0, arch)
+      pij_pos[pick] <- pij[pick]
+
+      pij_neg        <- array(0, arch)
+      pij_neg[!pick] <- pij[!pick]
+    
+      D_loc[[i]][[j]]   <- sum(pij_pos*D_pos/Dmax_pos) + sum(pij_neg*abs(D_neg)/Dmax_neg)       # D'
+      #r_loc[[i]][[j]] <- sum(D^2/pij)/min(arch-1)    # r^2
+      #tmp_sum          <- sum(D^2/pij)
+      r_loc[[i]][[j]]  <- sum(D^2)/((1-sum(Afreq**2))*(1-sum(Bfreq**2))) # D* # tmp_sum/min(arch-1)     # r^2
+      Q_loc[[i]][[j]]  <- sum(D^2/pij)/prod(arch-1)    # Q*
     }
   }
   # Save LD estimates
   saveRDS(D_loc, file = paste0(path, "dataset/true_LD_D", name, ".rds"))
-  saveRDS(Wn_loc, file = paste0(path, "dataset/true_LD_Wn", name, ".rds"))
+  saveRDS(r_loc, file = paste0(path, "dataset/true_LD_r", name, ".rds"))
+  saveRDS(Q_loc, file = paste0(path, "dataset/true_LD_Q", name, ".rds"))
 }
 
-estim_amb_prevalence <- function(estim_Param, true_prev, name){
+estim_amb_prevalence <- function(true_prev, name){
   # This function estimates the ambiguous prevalence as defined in the manuscript of tsoungui et.al, titled
-  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from SNPs data"
+  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from Microatellite data"
 
   qh_loc <- vector(mode = "list", length = n_Sim_Loci)
 
   for (l in 1:n_Sim_Loci){   # For each number of locus
+    estim_Param        <- readRDS(paste0(path, "dataset/modelEstimates_", l, name, ".rds"))
     qh_Samp      <- vector(mode = "list", length = n_Sampl)
 
     # Number of haplotypes
@@ -426,7 +462,7 @@ estim_amb_prevalence <- function(estim_Param, true_prev, name){
           amb_prevalence <- array(0, dim = c(num_Hapl, n_Sampl_Gen))
 
           ## Access each of the 10000 estimates
-          tmp1 <- estim_Param[[l]][[k]][[j]][, , i]
+          tmp1 <- estim_Param[[k]][[j]][, , i]#estim_Param[[l]][[k]][[j]][, , i]
 
           ## For each set of estimates, compute prevalence
           amb_prevalence <- (exp(tmp1[1,]) - exp(1-tmp1[2:num_Hapl_PlusOne,])^tmp1[1,])/(exp(tmp1[1,])-1)
@@ -450,14 +486,15 @@ estim_amb_prevalence <- function(estim_Param, true_prev, name){
   qh_loc
 }
 
-estim_conditional_prevalence <- function(estim_Param, sim_Param, true_prev, name, gen){
+estim_conditional_prevalence <- function(sim_Param, true_prev, name, gen){
   # This function estimates the unambiguous prevalence as defined in the manuscript of tsoungui et.al, titled
-  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from SNPs data"
+  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from Microatellite data"
  
   qh_loc <- vector(mode = "list", length = n_Sim_Loci)
 
   for (l in 1:n_Sim_Loci){   # For each number of locus
-    qh_Samp <- vector(mode = "list", length = n_Sampl)
+    estim_Param <- readRDS(paste0(path, "dataset/modelEstimates_", l, name, ".rds"))
+    qh_Samp     <- vector(mode = "list", length = n_Sampl)
 
     # True haplotype frequencies
     true_freq <- sim_Param[[1]][[l]]
@@ -490,7 +527,7 @@ estim_conditional_prevalence <- function(estim_Param, sim_Param, true_prev, name
           prevalence <- rep(0, num_Hapl)
 
           ## Access each of the 10000 estimates
-          tmp1 <- estim_Param[[l]][[k]][[j]][, , i]
+          tmp1 <- estim_Param[[k]][[j]][, , i]#estim_Param[[l]][[k]][[j]][, , i]
           tmp2 <- tmp1[2:(num_Hapl+1),]
 
           ## For each haplotype build the set Uh for all l
@@ -550,13 +587,14 @@ estim_conditional_prevalence <- function(estim_Param, sim_Param, true_prev, name
   qh_loc
 }
 
-estim_relative_prevalence <- function(estim, name, indx){
+estim_relative_prevalence <- function(name, indx){
   # This function estimates the relative prevalence as defined in the manuscript of tsoungui et.al, titled
-  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from SNPs data"
+  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from Microatellite data"
 
   qh_loc <- vector(mode = "list", length = n_Sim_Loci)
 
   for (l in 1:n_Sim_Loci){   # For each number of locus
+    estim   <- readRDS(paste0(path, "dataset/adhocModelEstimates", indx, "_", l, name, ".rds"))
     qh_Samp <- vector(mode = "list", length = n_Sampl)
 
     # True haplotype frequencies
@@ -576,7 +614,7 @@ estim_relative_prevalence <- function(estim, name, indx){
           prevalence <- rep(0, num_Hapl)
 
           ## Access each of the 10000 estimates
-          prev <- estim[[l]][[k]][[j]][, , i]
+          prev <- estim[[k]][[j]][, , i]#estim[[l]][[k]][[j]][, , i]
           prevalence <- rowMeans(prev, na.rm = TRUE)
   
           ## Save the prevalence in a list
@@ -594,115 +632,230 @@ estim_relative_prevalence <- function(estim, name, indx){
   qh_loc
 }
 
-estim_LD <- function(estim, gen, name){
-  # This function implements the true linkage disequilibrium measures (D', Wn^2) as defined in the manuscript of Tsoungui et.al, titled
+estim_LD <- function(gen, name){
+  # This function implements the true linkage disequilibrium measures (D', r^2, Q*) as defined in the manuscript of Tsoungui et.al, titled
   # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from STR data"
 
   Dloc <- vector(mode = "list", length = n_Sim_Loci)
-  Wnloc <- vector(mode = "list", length = n_Sim_Loci)
+  rloc <- vector(mode = "list", length = n_Sim_Loci)
+  Qloc <- vector(mode = "list", length = n_Sim_Loci)
 
   for (l in 1:n_Sim_Loci){
+    estim    <- readRDS(paste0(path, "dataset/modelEstimates_", l, name, ".rds"))
     DSamp    <- vector(mode = "list", length = n_Sampl)
-    WnSamp   <- vector(mode = "list", length = n_Sampl)
+    rSamp   <- vector(mode = "list", length = n_Sampl)
+    QSamp   <- vector(mode = "list", length = n_Sampl)
     arch     <- gen[l,]
     nhapl    <- prod(arch)
+    nhaplo   <- nhapl+1
 
     for (k in 1:n_Sampl){  # For each true sample size
       Dlamb <- vector(mode = "list", length = n_Freq_Distr)
-      Wnlamb <- vector(mode = "list", length = n_Freq_Distr)
+      rlamb <- vector(mode = "list", length = n_Freq_Distr)
+      Qlamb <- vector(mode = "list", length = n_Freq_Distr)
 
       for (j in 1:n_Lbda){ # For each true Lambda
-        Dfreq <- vector(mode = "list", length = n_Freq_Distr)
-        Wnfreq <- vector(mode = "list", length = n_Freq_Distr)
+        Dfreq  <- vector(mode = "list", length = n_Freq_Distr)
+        rfreq <- vector(mode = "list", length = n_Freq_Distr)
+        Qfreq <- vector(mode = "list", length = n_Freq_Distr)
 
         for (i in 1:n_Freq_Distr){ # For each choice of true frequency distribution
-          D <- matrix(0, ncol = n_Sampl_Gen)
-          Wn <- matrix(0, ncol = n_Sampl_Gen)
+          Dp  <- matrix(0, ncol = n_Sampl_Gen)
+          r <- matrix(0, ncol = n_Sampl_Gen)
+          Q <- matrix(0, ncol = n_Sampl_Gen)
 
           ## Access each of the estimates frequencies
-          estfreq <- estim_Param[[l]][[k]][[j]][, , i]
-          estfreq <- estfreq[2:(nhapl+1),]
+          estfreq <- estim[[k]][[j]][, , i]#estim[[l]][[k]][[j]][, , i]
+          estfreq <- estfreq[2:nhaplo,]
 
           for(p in 1:n_Sampl_Gen){
-            freq <- estfreq
-            allelefreq <- matrix(0, ncol=sum(arch))
-            tmpDfreq <- matrix(0, ncol=prod(arch))
-            tmpDfreq2 <- matrix(0, ncol=prod(arch))
-            tmpWnfreq <- matrix(0, ncol=prod(arch))
-            haplfreq <- matrix(freq, nrow = 1)
+            freq  <- estfreq[,p]
+            pmat  <- matrix(freq, arch)
+            Afreq <- rowSums(pmat)
+            Bfreq <- colSums(pmat)
 
-            for(a1 in 0:(arch[1]-1)){
-              for(a2 in 0:(arch[2]-1)){
-                idx <- (arch[2]*a1 + a2) + 1
-                allelefreq[,(a1+1)] <- allelefreq[,(a1+1)] + haplfreq[,idx]
-              }
-            }
+            pij   <- Afreq%*%t(Bfreq)        # pipj
+            picjc <- (1-Afreq)%*%t(1-Bfreq)  # (1-pi)(1-pj)
+            picj  <- (1-Afreq)%*%t(Bfreq)    # (1-pi)pj
+            pijc  <- Afreq%*%t(1-Bfreq)      # pi(1-pj)
 
-            for(a2 in 0:(arch[2]-1)){
-              for(a1 in 0:(arch[1]-1)){
-                idx <- (arch[2]*a1 + a2) + 1
-                allelefreq[,(arch[1]+a2+1)] <- allelefreq[,(arch[1]+a2+1)] + haplfreq[,idx]
-              }
-            }
+            D     <- round(freq - pij, 3)               # Dij
+            pick  <- D > 0
 
-            for(a1 in 0:(arch[1]-1)){
-              for(a2 in 0:(arch[2]-1)){
-                idx <- (arch[2]*a1 + a2) + 1
-                tmpDfreq[,idx] <- haplfreq[,idx] - allelefreq[,(a1+1)]*allelefreq[,(arch[1]+a2+1)] # Dij
+            D_pos       <- array(0, arch)
+            D_pos[pick] <- D[pick]
 
-                
-                tmp11 <- allelefreq[,(a1+1)]*allelefreq[,(arch[1]+a2+1)]             # PiPj
-                tmp12 <- (1-allelefreq[,(a1+1)])*(1-allelefreq[,(arch[1]+a2+1)])     # (1-Pi)(1-Pj)
-                tmp1 <- apply(cbind(tmp11, tmp12),1,max) 
+            D_neg        <- array(0, arch)
+            D_neg[!pick] <- D[!pick]
 
-                tmp21 <- allelefreq[,(a1+1)]*(1-allelefreq[,(arch[1]+a2+1)])         # Pi(1-Pj)
-                tmp22 <- (1-allelefreq[,(a1+1)])*allelefreq[,(arch[1]+a2+1)]         # (1-Pi)Pj
-                tmp2 <- apply(cbind(tmp21, tmp22),1,max)
+            Dmax_pos  <- D
+            Dmax_neg  <- D
 
-                cond <- sum(tmpDfreq[,idx] <= 0.0) == 2
-                if(cond){
-                  Dmax <- tmp1
-                }else{
-                  Dmax <- tmp2
-                }
-                tmpDfreq2[,idx] <- tmp11*abs(tmpDfreq[,idx])/Dmax     # D'ij
-                tmpWnfreq[,idx] <- (tmpDfreq[,idx]^2)/tmp11          # Wnij
-              }
-            }
-            D[,p] <- rowSums(tmpDfreq2, na.rm = TRUE)   # D'
-            Wn[,p] <- rowSums(tmpWnfreq, na.rm = TRUE)/min(arch-1) # Wn
+            Dmax_pos  <- do.call(pmin, list(picj, pijc))  # if Dij > 0
+            Dmax_neg  <- do.call(pmin, list(pij, picjc))  # if Dij < 0
+
+            pij_pos       <- array(0, arch)
+            pij_pos[pick] <- pij[pick]
+
+            pij_neg        <- array(0, arch)
+            pij_neg[!pick] <- pij[!pick]
+
+            Dp[,p]   <- sum(pij_pos*D_pos/Dmax_pos) + sum(pij_neg*abs(D_neg)/Dmax_neg)       # D'
+            #r[,p]  <- sum(D^2/pij)/min(arch-1)    # r^2  
+            #tmp_sum  <- sum(D^2/pij)
+            r[,p]    <- sum(D^2)/((1-sum(Afreq**2))*(1-sum(Bfreq**2))) # D* # tmp_sum/min(arch-1)     # r^2
+            Q[,p]    <- sum(D^2/pij)/prod(arch-1)    # Q*
           }
-          Dfreq[[i]] <- rowMeans(D, na.rm = TRUE)
-          Wnfreq[[i]] <- rowMeans(Wn, na.rm = TRUE)
+          Dfreq[[i]] <- Dp# rowMeans(Dp, na.rm = TRUE)
+          rfreq[[i]] <- r# rowMeans(r, na.rm = TRUE)
+          Qfreq[[i]] <- Q# rowMeans(Q, na.rm = TRUE)
         }
-        Dlamb[[j]] <- Dfreq
-        Wnlamb[[j]] <- Wnfreq
+        Dlamb[[j]]  <- Dfreq
+        rlamb[[j]] <- rfreq
+        Qlamb[[j]] <- Qfreq
       }
-      DSamp[[k]] <- Dlamb
-      WnSamp[[k]] <- Wnlamb
+      DSamp[[k]]  <- Dlamb
+      rSamp[[k]] <- rlamb
+      QSamp[[k]] <- Qlamb
     }
-    Dloc[[l]] <- DSamp
-    Wnloc[[l]] <- WnSamp
+    Dloc[[l]]  <- DSamp
+    rloc[[l]] <- rSamp
+    Qloc[[l]] <- QSamp
   }
   # Save LD estimates
-  saveRDS(Dloc, file = paste0(path, "dataset/estim_LD_D", name, ".rds"))
-  saveRDS(Wnloc, file = paste0(path, "dataset/estim_LD_Wn", name, ".rds"))
+  saveRDS(Dloc,  file = paste0(path, "dataset/estim_LD_D", name, ".rds"))
+  saveRDS(rloc, file = paste0(path, "dataset/estim_LD_r", name, ".rds"))
+  saveRDS(Qloc, file = paste0(path, "dataset/estim_LD_Q", name, ".rds"))
 }
 
+estim_LDtot <- function(gen, name){
+  # This function implements the true linkage disequilibrium measures (D', r^2) as defined in the manuscript of Tsoungui et.al, titled
+  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from STR data"
+
+  Dloc <- vector(mode = "list", length = n_Sim_Loci)
+  rloc <- vector(mode = "list", length = n_Sim_Loci)
+  Qloc <- vector(mode = "list", length = n_Sim_Loci)
+
+  for (l in 1:n_Sim_Loci){
+    estim    <- readRDS(paste0(path, "dataset/modelEstimates_", l, name, ".rds"))
+    DSamp    <- vector(mode = "list", length = n_Sampl)
+    rSamp   <- vector(mode = "list", length = n_Sampl)
+    QSamp   <- vector(mode = "list", length = n_Sampl)
+    arch     <- gen[l,]
+    nhapl    <- prod(arch)
+    nhaplo   <- nhapl+1
+
+    for (k in 1:n_Sampl){  # For each true sample size
+      Dlamb <- vector(mode = "list", length = n_Freq_Distr)
+      rlamb <- vector(mode = "list", length = n_Freq_Distr)
+      Qlamb <- vector(mode = "list", length = n_Freq_Distr)
+
+      for (j in 1:n_Lbda){ # For each true Lambda
+        Dfreq  <- vector(mode = "list", length = n_Freq_Distr)
+        rfreq <- vector(mode = "list", length = n_Freq_Distr)
+        Qfreq <- vector(mode = "list", length = n_Freq_Distr)
+
+        for (i in 1:n_Freq_Distr){ # For each choice of true frequency distribution
+          Dp  <- matrix(0, ncol = n_Sampl_Gen)
+          r <- matrix(0, ncol = n_Sampl_Gen)
+          Q <- matrix(0, ncol = n_Sampl_Gen)
+
+          ## Access each of the estimates frequencies
+          estfreq <- estim[[k]][[j]][, , i]#estim[[l]][[k]][[j]][, , i]
+          estfreq <- estfreq[2:nhaplo,]
+
+          for(p in 1:n_Sampl_Gen){
+            freq  <- estfreq[,p]
+            pmat  <- matrix(freq, arch)
+            Afreq <- rowSums(pmat)
+            Bfreq <- colSums(pmat)
+
+            pij   <- Afreq%*%t(Bfreq)        # pipj
+            picjc <- (1-Afreq)%*%t(1-Bfreq)  # (1-pi)(1-pj)
+            picj  <- (1-Afreq)%*%t(Bfreq)    # (1-pi)pj
+            pijc  <- Afreq%*%t(1-Bfreq)      # pi(1-pj)
+
+            D     <- round(freq - pij, 3)               # Dij
+            pick  <- D > 0
+
+            D_pos       <- array(0, arch)
+            D_pos[pick] <- D[pick]
+
+            D_neg        <- array(0, arch)
+            D_neg[!pick] <- D[!pick]
+
+            Dmax_pos  <- D
+            Dmax_neg  <- D
+
+            Dmax_pos  <- do.call(pmin, list(picj, pijc))  # if Dij > 0
+            Dmax_neg  <- do.call(pmin, list(pij, picjc))  # if Dij < 0
+
+            pij_pos       <- array(0, arch)
+            pij_pos[pick] <- pij[pick]
+
+            pij_neg        <- array(0, arch)
+            pij_neg[!pick] <- pij[!pick]
+
+            Dp[,p]   <- sum(pij_pos*D_pos/Dmax_pos) + sum(pij_neg*abs(D_neg)/Dmax_neg)       # D'
+            #r[,p]  <- sum(D^2/pij)/min(arch-1)    # r^2  
+            #tmp_sum  <- sum(D^2/pij)
+            r[,p]    <- sum(D^2)/((1-sum(Afreq**2))*(1-sum(Bfreq**2))) # D* # tmp_sum/min(arch-1)     # r^2
+            Q[,p]    <- sum(D^2/pij)/prod(arch-1)    # Q*
+          }
+          Dfreq[[i]]  <- Dp
+          rfreq[[i]] <- r
+          Qfreq[[i]] <- Q
+        }
+        Dlamb[[j]]  <- Dfreq
+        rlamb[[j]] <- rfreq
+        Qlamb[[j]] <- Qfreq
+      }
+      DSamp[[k]]  <- Dlamb
+      rSamp[[k]] <- rlamb
+      QSamp[[k]] <- Qlamb
+    }
+    Dloc[[l]]  <- DSamp
+    rloc[[l]] <- rSamp
+    Qloc[[l]] <- QSamp
+  }
+
+  # Save LD estimates
+  saveRDS(Dloc,  file = paste0(path, "dataset/estim_LD_Dtot", name, ".rds"))
+  saveRDS(rloc, file = paste0(path, "dataset/estim_LD_rtot", name, ".rds"))
+  saveRDS(Qloc, file = paste0(path, "dataset/estim_LD_Qtot", name, ".rds"))
+}
 
 main <- function(sim_Param, reshap_Sim_Param, name, gen){
-  # Loading estimated haplotype frequencies and MOI
-  estim_Param       <- readRDS(paste0(path, "dataset/modelEstimates", name, ".rds"))
-  adhoc_estim_Param1 <- readRDS(paste0(path, "dataset/adhocModelEstimates1", name, ".rds"))
-  adhoc_estim_Param2 <- readRDS(paste0(path, "dataset/adhocModelEstimates2", name, ".rds"))
-  adhoc_estim_Param3 <- readRDS(paste0(path, "dataset/adhocModelEstimates3", name, ".rds"))
+
+  # Loading estimates using the ad-hoc model and for each of the types of frequencies estimates
+  adhoc_estim_Param1 <- list(readRDS(paste0(path, "dataset/adhocModelEstimates1_1", name, ".rds")), readRDS(paste0(path, "dataset/adhocModelEstimates1_2", name, ".rds")), readRDS(paste0(path, "dataset/adhocModelEstimates1_3", name, ".rds")))
+  adhoc_estim_Param2 <- list(readRDS(paste0(path, "dataset/adhocModelEstimates2_1", name, ".rds")), readRDS(paste0(path, "dataset/adhocModelEstimates2_2", name, ".rds")), readRDS(paste0(path, "dataset/adhocModelEstimates2_3", name, ".rds")))
+  adhoc_estim_Param3 <- list(readRDS(paste0(path, "dataset/adhocModelEstimates3_1", name, ".rds")), readRDS(paste0(path, "dataset/adhocModelEstimates3_2", name, ".rds")), readRDS(paste0(path, "dataset/adhocModelEstimates3_3", name, ".rds")))
+
+  # Loading estimates of Linkage Disequilibrium for each type of frequency estimates
+
+  adhoc_Dptmp1 <- list(readRDS(paste0(path, "dataset/adhocModelDpEstimates1_1",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelDpEstimates1_2",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelDpEstimates1_3",  name, ".rds")))
+  adhoc_Dptmp2 <- list(readRDS(paste0(path, "dataset/adhocModelDpEstimates2_1",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelDpEstimates2_2",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelDpEstimates2_3",  name, ".rds")))
+  
+  adhoc_rtmp1  <- list(readRDS(paste0(path, "dataset/adhocModelrEstimates1_1",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelrEstimates1_2",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelrEstimates1_3",  name, ".rds")))
+  adhoc_rtmp2  <- list(readRDS(paste0(path, "dataset/adhocModelrEstimates2_1",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelrEstimates2_2",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelrEstimates2_3",  name, ".rds")))
+  
+  adhoc_Qtmp1  <- list(readRDS(paste0(path, "dataset/adhocModelQEstimates1_1",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelQEstimates1_2",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelQEstimates1_3",  name, ".rds")))
+  adhoc_Qtmp2  <- list(readRDS(paste0(path, "dataset/adhocModelQEstimates2_1",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelQEstimates2_2",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelQEstimates2_3",  name, ".rds")))
+  
+  #adhoc_r_ld1  <- list(readRDS(paste0(path, "dataset/adhocModelrEstimates1_1",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelrEstimates1_2",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelrEstimates1_3",   name, ".rds")))
+  #adhoc_Q_ld1  <- list(readRDS(paste0(path, "dataset/adhocModelQEstimates1_1",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelQEstimates1_2",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelQEstimates1_3",   name, ".rds")))
+
+  #adhoc_D_ld2  <- list(readRDS(paste0(path, "dataset/adhocModelDpEstimates2_1",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelDpEstimates2_2",  name, ".rds")), readRDS(paste0(path, "dataset/adhocModelDpEstimates2_3",  name, ".rds")))
+  #adhoc_r_ld2  <- list(readRDS(paste0(path, "dataset/adhocModelrEstimates2_1",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelrEstimates2_2",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelrEstimates2_3",   name, ".rds")))
+  #adhoc_Q_ld2  <- list(readRDS(paste0(path, "dataset/adhocModelQEstimates2_1",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelQEstimates2_2",   name, ".rds")), readRDS(paste0(path, "dataset/adhocModelQEstimates2_3",   name, ".rds")))
 
   # Bias of frequencies and MOI
-  bias(estim_Param, sim_Param, name)
+  bias(sim_Param, name)
 
   # Coefficient of variation of MOI
-  coefvar(estim_Param, sim_Param, name)
-
+  coefvar(sim_Param, name)
+  
   # True ambiguous prevalence
   true_Amb_Prev          <- true_amb_prevalence(reshap_Sim_Param, name)
 
@@ -715,20 +868,46 @@ main <- function(sim_Param, reshap_Sim_Param, name, gen){
   # True linkage disequilibrium measure
   true_LD(sim_Param[[1]], gen, name)
 
+  # Estimated linkage disequilibrium measure
+  estim_LD(gen, name)
+
+  # Merging adhoc estimates of each LD measure type for different frequencies estimates
+  adhoc_estim_Dp <- list(adhoc_Dptmp1, adhoc_Dptmp2, readRDS(paste0(path, "dataset/estim_LD_D", name, ".rds")))
+  adhoc_estim_R  <- list(adhoc_rtmp1, adhoc_rtmp2, readRDS(paste0(path, "dataset/estim_LD_r", name, ".rds")))
+  adhoc_estim_Q  <- list(adhoc_Qtmp1, adhoc_Qtmp2, readRDS(paste0(path, "dataset/estim_LD_Q", name, ".rds")))
+  adhoc_LD_estim <- list(adhoc_estim_Dp, adhoc_estim_R, adhoc_estim_Q)
+
+  # Coefficient of variation of LD
+  vec <- c('D', 'r', 'Q')
+
+  for(i in 1:3){
+    trueLD <- readRDS(paste0(path, "dataset/true_LD_", vec[i], ".rds")) 
+    for(j in 1:3){
+      if(j != 3){
+        ad <- 'adhoc'
+      }else{
+        ad <- ''
+      }
+      estimLD <- adhoc_LD_estim[[i]][[j]]
+      coefvar_LD(estimLD, trueLD, paste0(ad,vec[i]), j, name)
+    }
+  }
 
   # Estimated ambiguous prevalence
-  estim_amb_prevalence(estim_Param, true_Amb_Prev, name)
+  estim_amb_prevalence(true_Amb_Prev, name)
 
   # Estimated conditional prevalence
-  estim_conditional_prevalence(estim_Param, sim_Param, true_Conditional_Prev, name, gen)
+  estim_conditional_prevalence(sim_Param, true_Conditional_Prev, name, gen)
 
   # Estimated relative prevalence (adhoc Model)
-  estim_relative_prevalence(adhoc_estim_Param1, name, 1)
-  estim_relative_prevalence(adhoc_estim_Param2, name, 2)
-  estim_relative_prevalence(adhoc_estim_Param3, name, 3)
+  for(idx in 1:3){
+    estim_relative_prevalence(name, idx)
+  }
+  #estim_relative_prevalence(adhoc_estim_Param1, name, 1)
+  #estim_relative_prevalence(adhoc_estim_Param2, name, 2)
+  #estim_relative_prevalence(adhoc_estim_Param3, name, 3)
 
-  # Estimated linkage disequilibrium measure
-  estim_LD(estim_Param, gen, name)
+
 }
  
 # Relative path
@@ -764,8 +943,8 @@ for (name in namelist){
     reshap_Sim_Param[[i]] <- vector(mode='list', length=n_Freq_Distr)
 
     for (j in 1:n_Freq_Distr){
-      reshap_Sim_Param[[i]][[j]]             <- array(0, c(numb_Row, n_Lbda))
-      reshap_Sim_Param[[i]][[j]][1,]         <- sim_Param[[2]]
+      reshap_Sim_Param[[i]][[j]]              <- array(0, c(numb_Row, n_Lbda))
+      reshap_Sim_Param[[i]][[j]][1,]          <- sim_Param[[2]]
       reshap_Sim_Param[[i]][[j]][2:numb_Row,] <- sim_Param[[1]][[i]][j,]
     }
   }
