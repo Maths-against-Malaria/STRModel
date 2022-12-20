@@ -1,0 +1,118 @@
+# Title        : Template script for the MLE of haplotype frequencies, MOI, and prevalence
+#                from example dataset.
+# Objective    : Estimate haplotype frequencies, MOI, and prevalence
+#                from genomic/molecular data (microsatellite data)
+# Created by   : Christian Tsoungui Obama
+# Created on   : 14.11.22
+# Last modified: 21.11.22
+
+# Loading libraries
+library(xlsx)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+
+# Functions
+LDreshape <- function(dat){
+    for(k in 1:ncol(dat)){
+        alleles <- unique(dat[,k])
+        alleles <- alleles[!is.na(alleles)]
+        for(i in 0:(length(alleles)-1)){
+            pick <- dat[,k] == alleles[(i+1)]
+            pick[is.na(pick)] <- FALSE
+            dat[pick,k] <- i
+        }
+    }
+    n <- ncol(dat)
+    Dp <- array(0, dim=c(n,n))
+
+    for(i in 1:(n-1)){
+        dat1 <- dat[!is.na(dat[,i]),i]
+        n1 <- length(unique(dat1))
+        if(n1!=1){
+            if(i < n){
+                for(j in (i+1):n){
+                    dat2 <- dat[!is.na(dat[,j]),j]
+                    n2 <- length(unique(dat2))
+                    if(n2==1){
+                        j <- j + 1
+                    }else{
+                        DATA <- dat[,c(i,j)]
+                        DATA <- drop_na(DATA)
+                        arch <- c(n1, n2)
+                        est <- mle(DATA, arch, id=FALSE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=100, alpha=0.05)
+                        Dp[i,j] <- ldestim0(est, arch)[[1]]
+                    }
+                }
+            }
+        }
+    }
+    # Plot
+    #print(Dp)
+    pick <- lower.tri(Dp, diag = FALSE) #as.vector(lower.tri(Dp, diag = FALSE))
+    #Dpp <- as.vector(Dp)
+    LDvals <- t(Dp)[pick]
+    LDvals
+}
+
+plotld <- function(dat, LDvals, title="", year="", type="str", labs=labs, Blocks=Blocks, values=TRUE){
+    n <- ncol(dat)
+    Blocks <- Blocks
+    labs <- labs
+    if(values){
+        markers <- colnames(dat)
+        markers <- str_replace(markers, "dhfr.", "")
+        markers <- str_replace(markers, "dhps.", "")
+    }else{
+        markers <- c("-58", "-30", "-17", "-10", "-7.55", "-5.3", "-4.49", "-4.4", "-3.87", "-1.22", "-0.3", "0.2", "0.52", "5.87", "6.20",   
+                "8.50", "9.70", "10.90", "-50", "-17", "-10", "-7.4", "-2.47", "-1.64", "-0.8", "0.06", "0.144", "1.59", "6.19", "9.79",  
+                "17.5", "33", "71.6", "302", "313", "319", "379", "335", "363", "383", "429")
+    }
+    
+
+    p <- LDplot(LDvals,n,st=1,markers = markers, title=title,labs=labs, Blocks=Blocks,seplines=TRUE,thinlines=FALSE,blockbars=TRUE,values=values,pad=0.25,dec=2, pal = "RdPu")
+    outfile <- paste0(path, "/ld_CameroonData", type, year, ".pdf")
+    pdf(outfile, height=5, width=8)
+    print(p)
+    dev.off()
+
+}
+
+# Relative path
+path <- "/Volumes/GoogleDrive-117934057836063832284/.shortcut-targets-by-id/1Ulru-DjbFRaMVB7Vj9tJ4NfyzPDkhzOr/Maths against Malaria/Christian/Models/STRModel"
+
+# Import the dataset
+DATA <- read.xlsx(paste0(path, '/private/dataset/cameroon_data_CT.xlsx'), 2, header = TRUE)
+
+# Load external resources
+source(paste0(path, "/src/STRModel.R"))
+source(paste0(path, "/private/src/LDplot2.R"))
+
+# Dataset years 2001 and 2002
+pick1 <- DATA$year %in% c("01", "02")
+data1_2 <- DATA[pick1,]
+# Drug-resistant SNP markers 2001 and 2002
+snps1_2 <- data1_2[,3:11]
+# Drug-resistant STR markers 2001 and 2002
+str1_2 <- data1_2[,12:52]
+
+# Dataset years 2004 and 2005
+pick2 <- DATA$year %in% c("04", "05")
+data4_5 <- DATA[pick2,]
+# Drug-resistant SNP markers 2004 and 2005
+snps4_5 <- data4_5[,3:11]
+# Drug-resistant STR markers 2004 and 2005
+str4_5 <- data4_5[,12:52]
+
+valsnps1_2 <- LDreshape(snps1_2)
+plotld(snps1_2, valsnps1_2, title="", year="2001-02", type="snps", labs=c("dhfr", "dhps"), Blocks=c(4,5), values=TRUE)
+
+valsnps4_5 <- LDreshape(snps4_5)
+plotld(snps4_5, valsnps4_5, title="", year="2004-05", type="snps", labs=c("dhfr", "dhps"), Blocks=c(4,5), values=TRUE)
+
+
+vals1_2 <- LDreshape(str1_2)
+plotld(str1_2, vals1_2, title="", year="2001-02", type="str", labs=c("chrom. 4", "chrom. 8", "chrom. 2", "chrom. 3"), Blocks=c(18, 15, 4, 4), values=FALSE)
+
+vals4_5 <- LDreshape(str4_5)
+plotld(str4_5, vals4_5, title="", year="2004-05", type="str", labs=c("chrom. 4", "chrom. 8", "chrom. 2", "chrom. 3"), Blocks=c(18, 15, 4, 4), values=FALSE)

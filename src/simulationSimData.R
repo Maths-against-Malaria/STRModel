@@ -2,7 +2,7 @@
 # Objectives   : Implement the EM-algorithm on simulated data and save the estimates
 # Created by   : christian Tsoungui Obama, Kristan A. Schneider
 # Created on   : 05.05.22
-# Last modified: 24.05.22
+# Last modified: 05.12.22
 
 # Relative path
 path <- "/Volumes/GoogleDrive-117934057836063832284/My Drive/Maths against Malaria/Christian/Models/STRModel/"
@@ -16,7 +16,7 @@ lbdavec <- c(0.1, 0.25, 0.5, 1, 1.5, 2, 2.5)
 NLbd <- length(lbdavec)
 
 # Genetic architecture
-genArch <- matrix(c(2,2,2,3,4,7), ncol = 2, byrow = TRUE)
+genArch <- matrix(c(2,2,4,7), ncol = 2, byrow = TRUE) # matrix(c(2,2,2,3,4,7), ncol = 2, byrow = TRUE)
 Nn <- nrow(genArch)
 #nvec <- matrix(NumbLoci, nrow = 1, ncol = Nn)
 
@@ -30,7 +30,7 @@ Nvec <- c(50, 100, 150, 200, 500)
 NN <- length(Nvec)
 
 # Number of estimates generated in the simulation
-NEst <- 10000
+NEst <- 100000
 
 # Number of frequencies set per (number of loci) case
 NFreq <- 2
@@ -64,7 +64,7 @@ outr2 <- vector(mode = "list", length = Nn)
 outQ1 <- vector(mode = "list", length = Nn)
 outQ2 <- vector(mode = "list", length = Nn)
 
-for (i in 1:Nn){
+for (i in 2:Nn){
   print(paste0("processing frequency distributions for m=", genArch[i,1], " and n=",  genArch[i,2], " alleles, respectively."))
   sizelist <- vector(mode = "list", length = NN)
 
@@ -113,7 +113,7 @@ for (i in 1:Nn){
       for (cnt in 1:NFreq){
         for (l in 1:NEst){
           infct              <- datagen(unlist(Pvec[[i]][cnt,]) ,unlist(lbdavec[k]) ,Nvec[j], genArch[i,])      ## Generating data for the simulation
-          Estim[,l,cnt]      <- unlist(strmodel(infct, genArch[i,]))                                            ## Evaluating and saving the Estimates
+          Estim[,l,cnt]      <- unlist(eststrmodel(infct, genArch[i,]))                                            ## Evaluating and saving the Estimates
           tmp <- adhocfreqmodelsim(infct[[1]], infct[[2]], genArch[i,])        ## Ad hoc estimates for frequencies
 
           adhocFreqEstim1[,l,cnt] <- tmp[[1]]                                  ## Ad hoc estimates for frequencies
