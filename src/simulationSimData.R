@@ -16,7 +16,11 @@ lbdavec <- c(0.1, 0.25, 0.5, 1, 1.5, 2, 2.5)
 NLbd <- length(lbdavec)
 
 # Genetic architecture
+<<<<<<< HEAD
 genArch <- matrix(c(2,2,4,7), ncol = 2, byrow = TRUE)
+=======
+genArch <- matrix(c(2,2,4,7), ncol = 2, byrow = TRUE) # matrix(c(2,2,2,3,4,7), ncol = 2, byrow = TRUE)
+>>>>>>> a3368880b8bfa8163092b26e9f16092c7cf7e2b7
 Nn <- nrow(genArch)
 #nvec <- matrix(NumbLoci, nrow = 1, ncol = Nn)
 
@@ -64,7 +68,7 @@ outr2 <- vector(mode = "list", length = Nn)
 outQ1 <- vector(mode = "list", length = Nn)
 outQ2 <- vector(mode = "list", length = Nn)
 
-for (i in 1:Nn){
+for (i in 2:Nn){
   print(paste0("processing frequency distributions for m=", genArch[i,1], " and n=",  genArch[i,2], " alleles, respectively."))
   sizelist <- vector(mode = "list", length = NN)
 

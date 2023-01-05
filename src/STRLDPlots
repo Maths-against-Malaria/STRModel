@@ -4,7 +4,11 @@
 #                from genomic/molecular data (microsatellite data)
 # Created by   : Christian Tsoungui Obama
 # Created on   : 14.11.22
+<<<<<<< HEAD
 # Last modified: 05.01.2023
+=======
+# Last modified: 21.11.22
+>>>>>>> a3368880b8bfa8163092b26e9f16092c7cf7e2b7
 
 # Loading libraries
 library(xlsx)
@@ -42,14 +46,24 @@ LDreshape <- function(dat){
                         arch <- c(n1, n2)
                         est <- mle(DATA, arch, id=FALSE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=100, alpha=0.05)
                         Dp[i,j] <- ldestim0(est, arch)[[1]]
+<<<<<<< HEAD
                         #out <- ldestim(DATA, arch, plugin=NULL, id=FALSE, CI=TRUE, B=10000, alpha=0.05)[1,]
                         #Dp[i,j] <- str_c(out[1], ',', out[2], ',',out[3])
+=======
+>>>>>>> a3368880b8bfa8163092b26e9f16092c7cf7e2b7
                     }
                 }
             }
         }
     }
+<<<<<<< HEAD
     pick <- lower.tri(Dp, diag = FALSE)
+=======
+    # Plot
+    #print(Dp)
+    pick <- lower.tri(Dp, diag = FALSE) #as.vector(lower.tri(Dp, diag = FALSE))
+    #Dpp <- as.vector(Dp)
+>>>>>>> a3368880b8bfa8163092b26e9f16092c7cf7e2b7
     LDvals <- t(Dp)[pick]
     LDvals
 }

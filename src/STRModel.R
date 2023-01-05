@@ -1223,7 +1223,11 @@ ldestim <- function(Data, arch, plugin=NULL, id=TRUE, CI=FALSE, B=10000, alpha=0
 
   # MLEs
   est <- mle(Data, arch, id=FALSE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=100, alpha=0.05) #strmodel(dat1, arch, BC=FALSE, method=method, Bbias=FALSE, plugin=plugin)
+<<<<<<< HEAD
   ldvals <- ldestim0(est, arch)
+=======
+  ld <- ldestim0(est, arch)
+>>>>>>> a3368880b8bfa8163092b26e9f16092c7cf7e2b7
   # Bootstrap CIs
   if(CI){
     N     <- sum(Nx)
@@ -1242,12 +1246,22 @@ ldestim <- function(Data, arch, plugin=NULL, id=TRUE, CI=FALSE, B=10000, alpha=0
       tmp1        <- ldestim0(esttmp1, arch)
       Estim[,l]  <- unlist(tmp1) 
     }
+<<<<<<< HEAD
     Estim <- Estim[ , colSums(is.na(Estim))==0]
+=======
+>>>>>>> a3368880b8bfa8163092b26e9f16092c7cf7e2b7
     perc <- t(apply(Estim, 1, quantile, c(alpha/2, (1-alpha/2))))
     out <- cbind(ldvals,perc)
     rownames(out) <- c("D'", expression(r^2), "Q")
   }else{
+<<<<<<< HEAD
     out <- ldvals
   }
+=======
+    out <- ld
+    #names(out) <- c("D'", expression(r^2), "Q")
+  }
+ # names(out) <- c("D'", expression(r^2), "Q")
+>>>>>>> a3368880b8bfa8163092b26e9f16092c7cf7e2b7
   out
 }
