@@ -20,13 +20,3 @@ source("/home/janedoe/Documents/STRModel.R")
 
 # Find the MLEs
 est <- mle(DATA, id=TRUE)
-
-# Estimate prevalence
-## Unobservable prevalence
-unobsprev <- estunobsprev(est)
-
-## Conditional prevalence
-condprev <- estcondprev(est)
-
-## Relative prevalence
-relprev <- estrelprev(DATA, id=TRUE)

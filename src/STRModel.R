@@ -208,145 +208,6 @@ setUh <- function(haplo, cardUh, arch){
 # The function estsnpmodel(X,Nx) implements the EM algorithm and returns the MLEs, i.e., 
 # estimates of haplotype frequencies and Poisson parameter.
 #################################
-eststrmodel <- function(dat, arch){
-  X <- dat[[1]] + 1
-  Nx <- dat[[2]]
-  N <- sum(Nx)
-  nn <- nrow(X)
-  l <- arch
-  n <- length(l)
-  x <- X
-  hapll <- c()
-
-  ggead <- c(l[2], 1)
-  Hx <- list() 
-  Ax <- list() 
-  alnum <- list()
-  bin2num <- list()
-  for(k in 1:n){
-    alnum[[k]] <- 1:l[k]
-    bin2num[[k]] <- 2^(0:(l[k]-1))
-  }
-  alcnt <- array(,n)
-  for(u in 1:nrow(x)){
-    Hx[[u]] <- list()
-    Ax[[u]] <- list()
-    Hx[[u]][[1]] <- array(0,n)
-    Hx[[u]][[2]] <- list()
-    Hx[[u]][[3]] <- list()
-    Hx[[u]][[4]] <- list()
-    Hx[[u]][[5]] <- list()
-    Hx[[u]][[6]] <- array(,n)
-    Ax[[u]][[1]] <- list()
-    Ax[[u]][[2]] <- list()
-    Ax[[u]][[3]] <- list()
-    Ax[[u]][[4]] <- list()
-    for(k in 1:n){
-      temp <- gead(x[u,k],2,l[[k]])
-      temp1 <- varsets1(temp+1)[-1,]
-      Hx[[u]][[1]][k] <- sum(temp)
-      Hx[[u]][[2]][[k]] <- (alnum[[k]])[temp*alnum[[k]]]
-      Hx[[u]][[3]][[k]] <- temp1
-      Hx[[u]][[4]][[k]] <- temp1%*%bin2num[[k]] 
-      Hx[[u]][[5]][[k]] <- Hx[[u]][[3]][[k]]%*%rep(1,l[k])
-      Hx[[u]][[6]][k] <- length(temp1%*%bin2num[[k]])
-    }
-    vz1 <- sum(Hx[[u]][[1]])
-    temp2 <- prod(Hx[[u]][[6]])
-    Ax[[u]][[1]] <- temp2
-    Ax[[u]][[2]] <- varsets2(Hx[[u]][[6]])
-    for(k in 1:n){
-      Ax[[u]][[2]][,k] <- Hx[[u]][[4]][[k]][Ax[[u]][[2]][,k]]
-    }
-    for(j in 1:temp2){
-      Ax[[u]][[3]][[j]] <- list() 
-      for(k in 1:n){
-        temp <- gead(Ax[[u]][[2]][j,k],2,l[[k]])
-        temp1 <- (alnum[[k]])[temp*alnum[[k]]]
-        alcnt[k] <- length(temp1)
-        Ax[[u]][[3]][[j]][[k]] <- temp1
-      }
-      Ax[[u]][[4]][[j]] <- varsets2(alcnt)
-      for(k in 1:n){
-        Ax[[u]][[4]][[j]][,k] <- Ax[[u]][[3]][[j]][[k]][Ax[[u]][[4]][[j]][,k]]
-      }
-      Ax[[u]][[4]][[j]] <- as.character((Ax[[u]][[4]][[j]]-1)%*%ggead+1)
-      Ax[[u]][[3]][[j]] <- (-1)^(vz1+sum(alcnt))
-    }
-    hapll[[u]] <- Ax[[u]][[4]][[temp2]]
-  }  
-
-  hapl1 <- unique(unlist(hapll))
-  H <- length(hapl1)
-  pp <- array(rep(1/H,H),c(H,1))
-  rownames(pp) <- hapl1
-
-  num0 <- pp*0
-  num <- num0
-  rownames(num) <- hapl1
-  Bcoeff <- num0
-  rownames(Bcoeff) <- hapl1
-  la <- 2
-  eps <- 10^-8
-  cond1 <- 1 
-  t <- 0
-  while(cond1>eps && t<500){
-    t <- t+1
-    Ccoeff <- 0
-    Bcoeff <- num0    # reset B coefficients to 0 in next iteration
-    num <- num0       # reset numerator to 0 in next iteration
-    for(u in 1:nn){
-      denom <- 0
-      num <- num0
-      CC <- 0
-      for(k in 1:Ax[[u]][[1]]){
-        p <- sum(pp[Ax[[u]][[4]][[k]],])
-        vz <- Ax[[u]][[3]][[k]]
-        lap <- la*p
-        exlap <- vz*exp(lap)
-        denom <- denom + exlap-vz
-        num[Ax[[u]][[4]][[k]],] <- num[Ax[[u]][[4]][[k]],] + exlap
-        CC <- CC + exlap*p
-      }
-      num <- num*pp
-      denom <- Nx[u]/denom
-      denom <- la*denom
-      Ccoeff <- Ccoeff + CC*denom
-    
-      Bcoeff <- Bcoeff + num*denom
-    }
-    
-    Ccoeff <- Ccoeff/N
-
-    # Replacing NaN's in Ak by 0
-    cnt <- sum(is.nan(Bcoeff))
-    if(cnt > 0){
-        break
-      }else{
-        ppn <- Bcoeff/(sum(Bcoeff))
-    }
-    
-    ### Newton step
-    cond2 <- 1
-    xt <- Ccoeff   ### good initial condition
-    tau <- 0
-    while(cond2 > eps  &&  tau<300){
-      ex <- exp(-xt)
-      xtn <- xt + (1-ex)*(xt + Ccoeff*ex - Ccoeff)/(ex*xt+ex-1)
-      if(is.nan(xtn) || (tau == 299) || xtn < 0){
-          xtn <- runif(1, 0.1, 2.5)
-      }
-      cond2 <- abs(xtn-xt)
-      xt <- xtn
-      tau <- tau+1
-    }
-    cond1 <- abs(xt-la)+sqrt(sum((pp-ppn)^2))
-    la <- xt
-    pp <- ppn
-  }
-  list(la, pp)
-}
-
 strmodel0 <- function(dat, arch){
   X <- dat[[1]] + 1
   Nx <- dat[[2]]
@@ -482,25 +343,32 @@ strmodel0 <- function(dat, arch){
     la <- xt
     pp <- ppn
   }
-  ## Ordering the frequencies
-  # pp <- pp[order(as.numeric(rownames(pp))), ]
-
-  # ## Setting the frequencies of the unobserved haplotypes to 0.0
-  # nhapl <- prod(arch)
-
-  # if(length(pp)<nhapl){
-  #   out <- t(pp)
-  #   name <- colnames(out)
-  #   cnt <- 0
-  #   for (i in 1:nhapl) {
-  #     if (is.element(as.character(i), name)){
-  #       cnt <- cnt + 1
-  #     }else{
-  #       pp <- append(pp, list(x = 0.0), i-1)
-  #     }
-  #   }
-  # }
   list(la, pp)
+}
+
+eststrmodel <- function(dat, arch){
+  out <- strmodel0(dat,arch)
+  la <- out[[1]]
+  pp <- out[[2]]
+  ## Ordering the frequencies
+  pp <- pp[order(as.numeric(rownames(pp))), ]
+
+  ## Setting the frequencies of the unobserved haplotypes to 0.0
+  nhapl <- prod(arch)
+
+  if(length(pp)<nhapl){
+    out <- t(pp)
+    name <- colnames(out)
+    cnt <- 0
+    for (i in 1:nhapl) {
+      if (is.element(as.character(i), name)){
+        cnt <- cnt + 1
+      }else{
+        pp <- append(pp, list(x = 0.0), i-1)
+      }
+    }
+  }
+  list(la, unlist(pp))
 }
 
 #################################
@@ -743,7 +611,7 @@ strmodel <- function(dat, arch, BC=FALSE, method='bootstrap', Bbias=10000, plugi
 # The function reform(X1,id) takes as input the dataset in the 0-1-2-notation and returns a matrix of the observations,
 # and a vector of the counts of those observations, i.e., number of times each observation is made in the dataset.
 #################################
-reform <- function(X1, arch, id = TRUE){
+reform <- function(DATA, arch, id = TRUE){
     # This function formats the data for the MLE function
     # Remove the id column
     X1 <- DATA
@@ -752,16 +620,14 @@ reform <- function(X1, arch, id = TRUE){
     }
     
     # Deriving the number of time Nx each observation is made in the dataset
-    Nx <- sampl(X1)
+    Nx <- sampl(X1, arch)
 
     # Matrix of  observed observations
-    #nHapl <- prod(arch)
-    #H <- hapl(arch)
-    trin <- (2^arch-1)^c(1,0) # geadic representation
+    trin <- rev((2^arch-1)^c(0,1)) # geadic representation
 
     X1 <- as.matrix(X1, ncol=2)%*%trin + 1
     X1 <- t(as.data.frame(summary.factor(X1)))    # Observations present in the dataset
-    vals <- as.integer(colnames(X1))-1           
+    vals <- as.numeric(colnames(X1))-1        
     dat <- array(0,c(length(vals),2))
     for(k in 1:2){ #for each locus
       re <- vals%%trin[k]
@@ -769,40 +635,6 @@ reform <- function(X1, arch, id = TRUE){
       vals <- re
     }
     list(dat, Nx)
-}
-
-#################################
-# The function mle(df,id) wraps the reform(X1,id) and estsnpmodel(X, Nx) to find the MLEs and outputs the estimates
-# for haplotype frequencies, Poisson parameters, and a matrix of detected haplotypes.
-#################################
-mle <- function(df, id = TRUE){
-    # This function removes the ID column if there is one,
-    # then it derives the number of time each observation is made in the dataset,
-    # finally, the MLE are obtained and return in a list.
-
-    dat1 <- reform(df, id=TRUE)
-    X <- dat1[[1]]
-    Nx <- dat1[[2]]
-    nloci <- ncol(X)
-
-    # MLEs
-    out <- estsnpmodel(X, Nx)
-    out2 <- out[[2]]
-    rnames <- as.integer(rownames(out2)) - 1
-    nh <- length(rnames)
-    dat <- array(0,c(nh,nloci))
-    for(k in 0:(nloci-1)){ #for each locus
-        re <- rnames%%(2^(nloci-k-1))
-        dat[,nloci-k] <- (rnames-re)/(2^(nloci-k-1))
-        rnames <- re
-    } 
-    for(i in 1:nh){
-        rnames[i] <- paste(dat[i,], collapse = '')
-    }
-    rownames(out2) <- rnames
-    out <- list(unlist(out[1]), t(out2), dat)
-    names(out) <- c(expression(lambda), 'p', 'haplotypes')
-    out
 }
 
 #################################
@@ -819,16 +651,17 @@ mle <-function(Data, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="boo
 
   # MLEs
   out <- strmodel(dat1, arch, BC=BC, method=method, Bbias=Bbias, plugin=plugin)
+  trin <- rev((arch)^c(0,1)) # geadic representation
   out2 <- out[[2]]
   rnames1 <- as.integer(rownames(out2)) - 1
   rnames <- rnames1
   nh <- length(rnames)
   dat <- array(0,c(nh,nloci))
-  for(k in 0:(nloci-1)){ #for each locus
-      re <- rnames%%(2^(nloci-k-1))
-      dat[,nloci-k] <- (rnames-re)/(2^(nloci-k-1))
-      rnames <- re
-  } 
+  for(k in 1:2){ #for each locus
+    re <- rnames%%trin[k]
+    dat[,k] <- (rnames-re)/trin[k]
+    rnames <- re
+  }
   for(i in 1:nh){
       rnames[i] <- paste(dat[i,], collapse = '')
   }
@@ -873,6 +706,68 @@ mle <-function(Data, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="boo
   out
 }
 
+mle2 <-function(dat1, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=10000, B=10000, alpha=0.05){
+  
+  X     <- dat1[[1]]
+  Nx    <- dat1[[2]]
+  nloci <- 2 #ncol(X)
+
+  # MLEs
+  out <- strmodel(dat1, arch, BC=BC, method=method, Bbias=Bbias, plugin=plugin)
+  trin <- rev((arch)^c(0,1)) # geadic representation
+  out2 <- out[[2]]
+  rnames1 <- as.integer(rownames(out2)) - 1
+  rnames <- rnames1
+  nh <- length(rnames)
+  dat <- array(0,c(nh,nloci))
+  for(k in 1:2){ #for each locus
+    re <- rnames%%trin[k]
+    dat[,k] <- (rnames-re)/trin[k]
+    rnames <- re
+  }
+  for(i in 1:nh){
+      rnames[i] <- paste(dat[i,], collapse = '')
+  }
+  rownames(out2) <- rnames
+
+  # Bootstrap CIs
+  if(CI){
+    nhap  <- length(out2)
+    N     <- sum(Nx)
+    prob  <- Nx/N
+    Estim <- array(0, dim = c((nhap+1), B))
+    rownames(Estim) <- c('l',(rnames1+1))
+    for (l in 1:B){
+      infct <- vector(mode = "list", length = 2)
+      samp  <- rmultinom(N, 1, prob)
+      tmp   <- rowSums(samp)
+      pick  <- tmp == 0
+      infct[[1]]  <- X[!pick,]
+      infct[[2]]  <- tmp[!pick]
+      tmp1        <- strmodel(infct, arch, BC=BC, method=method, Bbias=Bbias, plugin=plugin)
+      rnames      <- as.integer(rownames(tmp1[[2]]))
+      Estim[1,l]  <- unlist(tmp1[[1]])  
+      Estim[as.character(rnames),l] <- unlist(tmp1[[2]])                             ## Evaluating and saving the Estimates
+    }
+    perc <- t(apply(Estim, 1, quantile, c(alpha/2, (1-alpha/2))))
+    if(is.null(plugin)){
+      out3 <- c(unlist(out[[1]]), perc[1,])
+      names(out3) <- c('', paste0(as.character((alpha/2)*100), '%'), paste0(as.character((1-alpha/2)*100), '%')) 
+    }else{
+      out3 <- out[[1]]
+      names(out3) <- c('')
+    }
+    out4 <- cbind(out2,perc[2:(nhap+1),])
+
+    out <- list(out3, out4, dat)
+  }else{
+    out1 <- out[[1]]
+    names(out1) <- c('')
+    out <- list(out1, t(out2), dat)
+  }
+  names(out) <- c(expression(lambda), 'p', 'haplotypes')
+  out
+}
 #################################
 # The function adhocfreqmodel(X,Nx) calculates the relative prevalence of the haplotypes
 # conditionned on unambiguous observations.
@@ -972,42 +867,42 @@ adhocfreqmodel <- function(X, Nx, arch){
 
 adhocfreqmodelsim <- function(X, Nx, arch){
   
-  X     <- cbind(X, Nx)
+  XX     <- cbind(X, Nx)
   n     <- ncol(X)
-  nloci <- n-1
+  nloci <- n
 
   # number of haplotypes
   nhpl <- prod(arch)
   
   # extract unambiguous observations
   bin <- list(2^(0:arch[1]), 2^(0:arch[2]))
-  Y <-  X[,1:2]+1  
+  Y <-  XX[,1:2]+1  
   pick1 <- Y
   for(i in 1:2){
     Y[,i] <- sapply((Y[,i]), function(x) sum(as.integer(intToBits(x))[-seq((arch[i]+1),32)]))
     pick1[,i] <- Y[,i] == 1
   }
   pick <- rowSums(pick1) > 0
-  X1   <- matrix(X[pick,], ncol = (nloci+1))
+  X1   <- matrix(XX[pick,], ncol = (nloci+1))
 
   if(!all(is.na(X1))){  # if there are unambiguous infections
     n1 <- nrow(X1)
     if(is.null(n1)){ # if there is only one unambiguous infection
       n1 <- 1
     }
-    X <- matrix(X1, nrow = n1)
+    XX <- matrix(X1, nrow = n1)
 
     # find indexes of multiple infections
     pick <- rowSums(matrix(pick1[pick,]==0, ncol = 2)) == 1 
-    tmp2 <- matrix(X[pick,1:nloci], ncol = nloci)
+    #tmp2 <- matrix(XX[pick,1:nloci], ncol = nloci)
     idx1 <- which(pick)
 
     if(length(idx1)>0){
       # single infections
-      tmp <- matrix(X[-idx1,], ncol = 3)
+      tmp <- matrix(XX[-idx1,], ncol = 3)
       s <- cbind(tmp, tmp[,3])
     }else {
-      s <- cbind(X, X[,3])
+      s <- cbind(XX, XX[,3])
     }
 
     # Single infections to corresponding haplotypes
@@ -1018,9 +913,9 @@ adhocfreqmodelsim <- function(X, Nx, arch){
     # Saving single infections
     s1 <- matrix(s[,-4],ncol=3)
 
-    # find all the haplotypes in X
+    # find all the haplotypes in XX
     for(i in idx1){
-      y <- matrix(X[i,], ncol = 3, byrow = TRUE)
+      y <- matrix(XX[i,], ncol = 3, byrow = TRUE)
       idx2 <- which(!(y[c(1,2)]+1)%in%2^(0:max(arch)))
       y2 <- y[idx2]+1
       all <- which(as.integer(intToBits(y2))[-seq((arch[idx2]+1),32)]==1)-1
@@ -1036,7 +931,7 @@ adhocfreqmodelsim <- function(X, Nx, arch){
     # binary representation
     bin <- c(arch[2],1)
     pp  <- s[,1:2]%*%bin+1
-    pp  <- cbind(pp,s[,3:4])   # frequencies from uambiguous observations, assuming (i) non-weighted, (ii) weighted
+    pp  <- cbind(pp, matrix(s[,3:4], ncol = 2))  #cbind(pp,s[,3:4])   # frequencies from uambiguous observations, assuming (i) non-weighted, (ii) weighted
     pp1  <- s1[,1:2]%*%bin+1
     pp1  <- cbind(pp1,s1[,3])  # frequencies from single infections
 
@@ -1046,7 +941,7 @@ adhocfreqmodelsim <- function(X, Nx, arch){
     
     # Frequencies estimates Method 1
     p <- matrix(0, ncol=length(idx3), nrow = 3)
-    tot <- colSums(pp[,2:3])
+    tot <- colSums(matrix(pp[,2:3], ncol = 2))
     for (i in idx3){
       idx4 <- which(pp[,1]==i)
       p[1:2,which(i==idx3)] <- colSums(matrix(pp[idx4,2:3],ncol=2))/tot
@@ -1089,7 +984,7 @@ adhocfreqmodelsim <- function(X, Nx, arch){
 #################################
 sampl <- function(dat, arch){
     nloci <- ncol(dat)
-    trin <- (2^arch-1)^c(0,1) # vector of geadic representaion
+    trin <- rev((2^arch-1)^c(0,1)) # vector of geadic representaion
     out <- table(as.matrix(dat, ncol=nloci)%*%trin + 1)
     out
 }
@@ -1214,7 +1109,7 @@ adhocLDsim <- function(freq, gen){
   # This function implements the true linkage disequilibrium measures (D', r^2, Q*) as defined in the manuscript of Tsoungui & Schneider, titled
   # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from STR data"
 
-  pmat  <- matrix(freq, gen)
+  pmat  <- matrix(freq, gen, byrow = TRUE)
   Afreq <- rowSums(pmat)
   Bfreq <- colSums(pmat)
 
@@ -1223,7 +1118,7 @@ adhocLDsim <- function(freq, gen){
   gen_new <- c(sum(idxA), sum(idxB))
 
   pmatnew  <- pmat[idxA, idxB]
-  freqnew  <- matrix(freq, nrow = gen[1])[idxA, idxB]
+  freqnew  <- matrix(freq, nrow = gen[1], byrow = TRUE)[idxA, idxB]
   Afreqnew <- Afreq[idxA]
   Bfreqnew <- Bfreq[idxB]
 
@@ -1261,29 +1156,98 @@ adhocLDsim <- function(freq, gen){
   list(Dp, r, Q)
 }
 
+ldestim0 <- function(est, gen){
+  # Ordering frequencies estimates from 1 to H=n1*n2. The ordering is necessary to obtain the alleles marginal frequencies.
+  freq <- array(0, c(1,prod(gen)))
+  frequ <- est$p
+  trin <- rev((gen)^c(0,1)) #gen^c(1,0)
+  hap <- est$haplotypes%*%trin + 1
+  colnames(frequ) <- hap
+  for(i in hap){
+    idx <- which(colnames(frequ) == i)
+    freq[,i] <- frequ[,idx]
+  }
 
-infct  <- datagen(unlist(Pvec[[1]][2,]), unlist(lbdavec[4]), Nvec[5], genArch[1,]) 
-infct
-dat <- infct
-arch <- genArch[1,]
+  pmat  <- matrix(freq, gen, byrow = TRUE)
+  Afreq <- rowSums(pmat) # Alleles marginal frequencies locus 1
+  Bfreq <- colSums(pmat) # Alleles marginal frequencies locus 2
 
-out <- strmodel1(dat, arch, plugin=1)
-out
-out <- strmodel(dat, arch, BC=TRUE, method='jackknife', Bbias=10000, plugin=NULL) #strmodel(dat, arch, plugin=1)
-out
+  idxA <- Afreq != 0
+  idxB <- Bfreq != 0
+  gen_new <- c(sum(idxA), sum(idxB))
 
-# Loading libraries
-library(xlsx)
+  #pmatnew  <- pmat[idxA, idxB]
+  freqnew  <- matrix(freq, nrow = gen[1], byrow = TRUE)[idxA, idxB]
+  Afreqnew <- Afreq[idxA]
+  Bfreqnew <- Bfreq[idxB]
 
-# Relative path
- path <- "/Volumes/GoogleDrive-117934057836063832284/My Drive/Maths against Malaria/Christian/Models/MultiLociBiallelicModel/"
+  pij   <- Afreqnew%*%t(Bfreqnew)        # pipj
+  picjc <- (1-Afreqnew)%*%t(1-Bfreqnew)  # (1-pi)(1-pj)
+  picj  <- (1-Afreqnew)%*%t(Bfreqnew)    # (1-pi)pj
+  pijc  <- Afreqnew%*%t(1-Bfreqnew)      # pi(1-pj)
 
-# Import the dataset
- DATA <- read.xlsx(paste0(path, '/dataset/example.xlsx'), 1, header = TRUE)
+  D     <- freqnew - pij #round(freqnew - pij, 5)       # Dij
+  pick  <- D > 0
 
-# Load external resources
-# source("/home/janedoe/Documents/SNPModel.R")
+  D_pos       <- array(0, gen_new)
+  D_pos[pick] <- D[pick]
 
-# Find the MLEs
- est <- mle(DATA, arch, id=TRUE, plugin=NULL, CI=TRUE, BC=TRUE, method="bootstrap", Bbias=100, B=100, alpha=0.05)
- est
+  D_neg        <- array(0, gen_new)
+  D_neg[!pick] <- D[!pick]
+
+  Dmax_pos  <- D
+  Dmax_neg  <- D
+
+  Dmax_pos  <- do.call(pmin, list(picj, pijc))  # if Dij > 0
+  Dmax_neg  <- do.call(pmin, list(pij, picjc))  # if Dij < 0
+
+  pij_pos       <- array(0, gen_new)
+  pij_pos[pick] <- pij[pick]
+
+  pij_neg        <- array(0, gen_new)
+  pij_neg[!pick] <- pij[!pick]
+
+  Dp <- sum(pij_pos*D_pos/Dmax_pos) + sum(pij_neg*abs(D_neg)/Dmax_neg) # D'
+  tmp_sum <- sum(D^2/pij)
+  r  <- sum(D^2)/((1-sum(Afreqnew**2))*(1-sum(Bfreqnew**2))) # D* # tmp_sum/min(gen-1)     # r^2
+  Q  <- tmp_sum/prod(gen-1)    # Q*
+  
+  list(Dp, r, Q)
+}
+
+ldestim <- function(Data, arch, plugin=NULL, id=TRUE, CI=FALSE, B=10000, alpha=0.05){
+  dat1  <- reform(Data, arch, id=id)
+  X     <- dat1[[1]]
+  Nx    <- dat1[[2]]
+  #nloci <- 2 #ncol(X)
+
+  # MLEs
+  est <- mle(Data, arch, id=FALSE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=100, alpha=0.05) #strmodel(dat1, arch, BC=FALSE, method=method, Bbias=FALSE, plugin=plugin)
+  ldvals <- ldestim0(est, arch)
+  # Bootstrap CIs
+  if(CI){
+    N     <- sum(Nx)
+    prob  <- Nx/N
+    Estim <- array(0, dim = c(3, B))
+    for (l in 1:B){
+      infct <- vector(mode = "list", length = 2)
+      samp  <- rmultinom(N, 1, prob)
+      tmp   <- rowSums(samp)
+      pick  <- tmp == 0
+      infct[[1]]  <- X[!pick,]
+      infct[[2]]  <- tmp[!pick]
+
+      #infct <- Data[samp,]
+      esttmp1     <- mle2(infct, arch, id=FALSE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=100, alpha=0.05)
+      tmp1        <- ldestim0(esttmp1, arch)
+      Estim[,l]  <- unlist(tmp1) 
+    }
+    Estim <- Estim[ , colSums(is.na(Estim))==0]
+    perc <- t(apply(Estim, 1, quantile, c(alpha/2, (1-alpha/2))))
+    out <- cbind(ldvals,perc)
+    rownames(out) <- c("D'", expression(r^2), "Q")
+  }else{
+    out <- ldvals
+  }
+  out
+}
